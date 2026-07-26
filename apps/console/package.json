@@ -12,7 +12,10 @@
   },
   "dependencies": {
     "@neton/application-client-contract": "workspace:*",
+    "@neton/application-client-gateway": "file:../../../../Neton/neton-application-client-gateway",
     "@neton/application-client-kit": "workspace:*",
+    "@neton/application-client-member": "file:../../../../Neton/neton-application-client-member",
+    "@neton/application-client-payment": "file:../../../../Neton/neton-application-client-payment",
     "@neton/application-client-resource": "workspace:*",
     "@neton/application-client-runtime": "workspace:*",
     "@tanstack/react-query": "^5.0.0",

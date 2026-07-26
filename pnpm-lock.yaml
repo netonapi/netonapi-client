@@ -23,9 +23,18 @@ importers:
       '@neton/application-client-contract':
         specifier: workspace:*
         version: link:../../packages/client-contract
+      '@neton/application-client-gateway':
+        specifier: file:../../../../Neton/neton-application-client-gateway
+        version: file:../../Neton/neton-application-client-gateway(@neton/application-client-contract@packages+client-contract)(@neton/application-client-kit@packages+client-kit)(@neton/application-client-runtime@packages+client-runtime)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@neton/application-client-kit':
         specifier: workspace:*
         version: link:../../packages/client-kit
+      '@neton/application-client-member':
+        specifier: file:../../../../Neton/neton-application-client-member
+        version: file:../../Neton/neton-application-client-member(@neton/application-client-contract@packages+client-contract)(@neton/application-client-kit@packages+client-kit)(@neton/application-client-runtime@packages+client-runtime)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@neton/application-client-payment':
+        specifier: file:../../../../Neton/neton-application-client-payment
+        version: file:../../Neton/neton-application-client-payment(@neton/application-client-contract@packages+client-contract)(@neton/application-client-kit@packages+client-kit)(@neton/application-client-runtime@packages+client-runtime)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@neton/application-client-resource':
         specifier: workspace:*
         version: link:../../packages/client-resource
@@ -499,6 +508,33 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==, tarball: https://registry.npmmirror.com/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz}
+
+  '@neton/application-client-gateway@file:../../Neton/neton-application-client-gateway':
+    resolution: {directory: ../../Neton/neton-application-client-gateway, type: directory}
+    peerDependencies:
+      '@neton/application-client-contract': ^1.0.0
+      '@neton/application-client-kit': ^1.0.0
+      '@neton/application-client-runtime': ^1.0.0
+      react: ^19.0.0
+      react-dom: ^19.0.0
+
+  '@neton/application-client-member@file:../../Neton/neton-application-client-member':
+    resolution: {directory: ../../Neton/neton-application-client-member, type: directory}
+    peerDependencies:
+      '@neton/application-client-contract': ^1.0.0
+      '@neton/application-client-kit': ^1.0.0
+      '@neton/application-client-runtime': ^1.0.0
+      react: ^19.0.0
+      react-dom: ^19.0.0
+
+  '@neton/application-client-payment@file:../../Neton/neton-application-client-payment':
+    resolution: {directory: ../../Neton/neton-application-client-payment, type: directory}
+    peerDependencies:
+      '@neton/application-client-contract': ^1.0.0
+      '@neton/application-client-kit': ^1.0.0
+      '@neton/application-client-runtime': ^1.0.0
+      react: ^19.0.0
+      react-dom: ^19.0.0
 
   '@next/env@16.2.10':
     resolution: {integrity: sha512-zLPxg9M0MEHmygpj5OuxjQ+vHMiy/K7cSp74G8ecYolmgUWw0RwN02tF56npup/+qaI8JB97hQgS/r2Hb6QwVA==, tarball: https://registry.npmmirror.com/@next/env/-/env-16.2.10.tgz}
@@ -1919,6 +1955,30 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.4.14
+
+  '@neton/application-client-gateway@file:../../Neton/neton-application-client-gateway(@neton/application-client-contract@packages+client-contract)(@neton/application-client-kit@packages+client-kit)(@neton/application-client-runtime@packages+client-runtime)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
+    dependencies:
+      '@neton/application-client-contract': link:packages/client-contract
+      '@neton/application-client-kit': link:packages/client-kit
+      '@neton/application-client-runtime': link:packages/client-runtime
+      react: 19.2.7
+      react-dom: 19.2.7(react@19.2.7)
+
+  '@neton/application-client-member@file:../../Neton/neton-application-client-member(@neton/application-client-contract@packages+client-contract)(@neton/application-client-kit@packages+client-kit)(@neton/application-client-runtime@packages+client-runtime)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
+    dependencies:
+      '@neton/application-client-contract': link:packages/client-contract
+      '@neton/application-client-kit': link:packages/client-kit
+      '@neton/application-client-runtime': link:packages/client-runtime
+      react: 19.2.7
+      react-dom: 19.2.7(react@19.2.7)
+
+  '@neton/application-client-payment@file:../../Neton/neton-application-client-payment(@neton/application-client-contract@packages+client-contract)(@neton/application-client-kit@packages+client-kit)(@neton/application-client-runtime@packages+client-runtime)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
+    dependencies:
+      '@neton/application-client-contract': link:packages/client-contract
+      '@neton/application-client-kit': link:packages/client-kit
+      '@neton/application-client-runtime': link:packages/client-runtime
+      react: 19.2.7
+      react-dom: 19.2.7(react@19.2.7)
 
   '@next/env@16.2.10': {}
 
