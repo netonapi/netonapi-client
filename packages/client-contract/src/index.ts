@@ -16,7 +16,7 @@ export interface FrontPageManifest {
   /** 包内页面入口：`<pkg>/pages/<entry>` 必须可被静态 import */
   entry: string;
   rendering: FrontPageRendering;
-  /** 不由后端菜单直接下发的模块内页面，例如 `/privchat/user/:id`。 */
+  /** 不由后端菜单直接下发的模块内页面，路由由模块自己声明。 */
   standalone?: boolean;
 }
 
