@@ -1,26 +1,105 @@
-# neton-application-client
+# NanoGate 用户控制台
 
-通用 **C 端用户控制台** base distribution（React 19 + Next.js App Router，SSR），对标云厂商控制台
-（阿里云/腾讯云/AWS）的产品形态；与 `neton-application-front`（B 端管理台底座）同构、同维护模式。
+NanoGate 自助侧前端（仓名 `nanogate-client`）：用户在这里领 API Key、看用量与账单、充值，
+并查看模型定价。React 19 + Next.js App Router（SSR），pnpm workspace，BFF 代理模式。
+与管理台 [`nanogate-admin`](https://github.com/zoujiaqing/nanogate-admin) 同构、同维护模式，
+面向的是会员而不是运营人员。
 
-与 front 底座的三个关键差异：
+后端是 [`nanogate-backend`](https://github.com/zoujiaqing/nanogate-backend)（默认
+`http://localhost:7080`）；部署与密钥说明见 `nanogate` 仓的
+[`DEPLOY.md`](https://github.com/zoujiaqing/nanogate/blob/main/DEPLOY.md)。
 
-| 维度 | neton-application-front（B 端） | neton-application-client（C 端） |
-|------|------|------|
-| 账号体系 | module-system 管理员，`/admin` 组 | module-member 会员，`/app` 组（HttpOnly Cookie） |
+| | |
+|---|---|
+| 前端 | React 19.2 · Next.js 16（App Router，SSR）· Tailwind 4 · TanStack Query 5 |
+| 包管理 | pnpm workspace（`apps/*` + `packages/*`），lockfile 已提交 |
+| 语言 | TypeScript 5.7（`tsc --noEmit` 为门禁） |
+| 开发端口 | `3000`（Next.js 默认，`next dev` 未带 `-p`） |
+| 许可 | [Apache-2.0](./LICENSE) |
+
+## 与管理台的差异
+
+| 维度 | `nanogate-admin`（B 端） | `nanogate-client`（C 端） |
+|---|---|---|
+| 账号体系 | `module-system` 管理员，`/admin` 组 | `module-member` 会员，`/app` 组 |
+| 登录端点 | `/admin/system/auth/login` | `/app/auth/login-username` |
 | 导航 | 后端菜单驱动（RBAC） | 静态导航 `apps/console/src/config/console.nav.ts` |
-| 路由 | 全部受保护 | 受保护控制台 + `(public)` 公开路由组（产品 fork 自行添加） |
+| 会话时长 | 取自 `expiresTime`（毫秒时间戳） | 取自 `expiresIn`（秒） |
 
-- `apps/console` — Next.js 壳：member 登录、模块 manifest 驱动的 catch-all 路由
-- `packages/client-contract` — 模块契约（manifest / 贡献点 / 版本协议）
-- `packages/client-runtime` — envelope HTTP client、member 会话、静态导航工具
-- `packages/client-kit` — UI 组件唯一属地（shadcn/Base UI 只进这里）
+两侧的 Cookie 都是 HttpOnly + `SameSite=Lax`，`secure` 仅在 `NODE_ENV=production` 打开，
+`maxAge` 下限 60s、兜底 8h。
 
-模块装配：产品 fork 在 `apps/console/client.modules.ts` 登记 `@neton/application-client-xxx` 模块
-（file: 引 canonical sibling 仓，形态同 front 底座）。
+## 结构
+
+- `apps/console`（`@neton/application-client-console`）—— Next.js 壳：会员登录、
+  模块 manifest 驱动的 catch-all 路由 `(protected)/[...slug]`
+- `packages/client-contract` —— 模块契约（manifest / 贡献点 / 版本协议）
+- `packages/client-runtime` —— envelope HTTP client、会员会话、静态导航工具
+- `packages/client-kit` —— UI 组件的唯一属地（shadcn / Base UI 只进这里）
+- `packages/client-resource` —— 通用 CRUD 资源渲染器：声明字段（`ResourceField[]`）就得到
+  列表 / 筛选 / 抽屉表单页，数据走 envelope API
+
+业务页面不在本仓：它们由 canonical 的前端模块仓提供，`apps/console` 只做装配。
+
+## 模块装配
+
+`apps/console/client.modules.ts` 是装配清单的唯一来源，`scripts/generate-registry.mts`
+据此生成页面注册表：
+
+```
+@neton/application-client-member    # 通用：账号
+@neton/application-client-payment   # 通用：充值与账单
+@neton/application-client-gateway   # 产品：NanoGate 的 API 网关自助面
+```
+
+三个模块都以 `file:../../../../Neton/neton-application-client-*` 引入，所以本仓必须正好落在
+持有 `Neton/` 的那层目录的**两层深处**：
+
+```
+projects/
+├── Neton/
+│   └── neton-application-client-{member,payment,gateway}/
+└── <workspace>/
+    ├── newgate/          # 后端
+    └── newgate-client/   # ← 本仓
+```
+
+> ⚠️ **现在从干净 clone 出发装不起来。** `neton-application-client-gateway` 目前是私有仓
+> （`-member`、`-payment` 是公开的），而它正是 NanoGate 自助面的页面所在。没有它的读权限，
+> `pnpm install` 会在解析 `file:` 依赖时失败。在它转公开之前，公开本仓只意味着「源码可读」，
+> 不意味着「人人可自建」。
+
+## 开发
 
 ```bash
-pnpm install
-pnpm registry   # 由 apps/console/client.modules.ts 生成页面注册表（prebuild 自动跑）
-pnpm dev        # NETON_BACKEND_URL 默认 http://localhost:7080
+pnpm install --frozen-lockfile
+pnpm registry      # 由 client.modules.ts 生成页面注册表（predev / prebuild 会自动跑）
+pnpm dev           # http://localhost:3000，后端地址用 NETON_BACKEND_URL 覆盖
+pnpm typecheck     # 先 registry 再 tsc --noEmit
+pnpm build
 ```
+
+两个坑，都踩过：
+
+- **`allowBuilds`**：`pnpm-workspace.yaml` 必须放行 `esbuild`（`pnpm registry` 走 tsx）与
+  `sharp`（Next 图片优化）的 postinstall。留着脚手架占位文本，pnpm 11 会报
+  `ERR_PNPM_IGNORED_BUILDS` 并以 exit 1 结束 install——CI 第一步就红。
+- **`file:` 依赖是拷贝进 store 的**：`node_modules/.pnpm/…@file+…` 里是一份副本，
+  拉完 canonical 模块仓的新提交后必须重装（`pnpm install`）才看得到变化。
+
+## 认证与代理
+
+浏览器**拿不到** JWT：`POST /api/auth/login` 把会员令牌写成 HttpOnly Cookie，
+所有业务请求走 `/api/backend/<path>`，由 Next 服务端取出 Cookie、加 `Authorization: Bearer …`
+后转发到 `NETON_BACKEND_URL`（`cache: no-store`）。没有 Cookie 时代理直接回 401。
+
+## 已知缺口
+
+- `console.nav.ts` 里的静态导航目前是**空数组**，`(protected)/layout.tsx` 渲染
+  `AppShell` 时 `roles` 与 `permissions` 也传的是空数组：壳能跑、页面由模块 manifest 挂进来，
+  但侧边导航与前端侧的权限判定还没接。
+- 没有 `(public)` 公开路由组（定价页、注册页这类不需要登录的页面要自己加）。
+
+## 许可
+
+Apache-2.0 —— 见 [LICENSE](./LICENSE)。
