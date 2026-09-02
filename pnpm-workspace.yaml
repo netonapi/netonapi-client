@@ -2,9 +2,12 @@ packages:
   - apps/*
   - packages/*
 
+# 这两个包的 postinstall 必须放行：esbuild 要落它的平台二进制（`pnpm registry` 走 tsx = esbuild），
+# sharp 要装原生图像库（Next 的图片优化）。留着脚手架占位文本会让 pnpm 11 直接
+# 报 ERR_PNPM_IGNORED_BUILDS 并以 exit 1 结束 install —— CI 第一步就红。
 allowBuilds:
-  esbuild: set this to true or false
-  sharp: set this to true or false
+  esbuild: true
+  sharp: true
 
 onlyBuiltDependencies:
   - esbuild

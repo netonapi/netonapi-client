@@ -1,0 +1,90 @@
+name: Client CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # 跨仓 checkout 私有 canonical 仓需要 PAT（GITHUB_TOKEN 只对本仓有效）。
+  # 配 repo secret NETON_CI_TOKEN（fine-grained，对 neton-application org 只读）；
+  # 若这些仓全部公开，不配也能跑（自动回落 GITHUB_TOKEN）。
+  NETON_CI_TOKEN: ${{ secrets.NETON_CI_TOKEN || secrets.GITHUB_TOKEN }}
+
+# ── checkout 布局是硬约束，不是风格问题 ──────────────────────────────────────────
+# apps/console/package.json 用相对路径依赖 canonical C 端模块：
+#   "@neton/application-client-gateway": "file:../../../../Neton/neton-application-client-gateway"
+# 从 apps/console 往上四层必须正好落在 workspace 根，canonical 仓必须在根下的 Neton/：
+#   dist/newgate-client/apps/console → up4 = workspace → workspace/Neton/*
+# 少 checkout 任何一个模块，`pnpm install` 解析 file: 依赖时就直接失败。
+#
+# ⚠️ pnpm-lock.yaml 的 resolution 里固定了 registry.npmmirror.com 的 tarball 地址
+#   （维护者本地 registry 就是这个镜像）。GitHub runner 能访问它；若要改用官方源，
+#   得在没有全局 mirror 配置的环境重新生成 lockfile，否则 CI 仍然会去拉镜像。
+
+jobs:
+  verify:
+    name: Typecheck + build (user console)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout this repository
+        uses: actions/checkout@v4
+        with:
+          path: dist/newgate-client
+
+      - name: Checkout client-gateway pages
+        uses: actions/checkout@v4
+        with:
+          repository: neton-application/neton-application-client-gateway
+          token: ${{ env.NETON_CI_TOKEN }}
+          path: Neton/neton-application-client-gateway
+
+      - name: Checkout client-member pages
+        uses: actions/checkout@v4
+        with:
+          repository: neton-application/neton-application-client-member
+          token: ${{ env.NETON_CI_TOKEN }}
+          path: Neton/neton-application-client-member
+
+      - name: Checkout client-payment pages
+        uses: actions/checkout@v4
+        with:
+          repository: neton-application/neton-application-client-payment
+          token: ${{ env.NETON_CI_TOKEN }}
+          path: Neton/neton-application-client-payment
+
+      # pnpm 必须在 setup-node 之前：后者的 cache: pnpm 需要 pnpm 已在 PATH 上。
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: dist/newgate-client/pnpm-lock.yaml
+
+      - name: Install dependencies
+        working-directory: dist/newgate-client
+        run: pnpm install --frozen-lockfile
+
+      # typecheck 之前会先跑 registry 生成（tsx → esbuild），所以 allowBuilds 必须放行 esbuild，
+      # 否则 install 就以 ERR_PNPM_IGNORED_BUILDS 失败（见 pnpm-workspace.yaml 的注释）。
+      - name: Typecheck
+        working-directory: dist/newgate-client
+        run: pnpm typecheck
+
+      - name: Build
+        working-directory: dist/newgate-client
+        run: pnpm build
