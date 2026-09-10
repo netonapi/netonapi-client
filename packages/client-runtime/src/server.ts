@@ -5,7 +5,7 @@ import type { Envelope, MemberProfile } from "./types";
 export const SESSION_COOKIE = "neton_client_session";
 
 export function backendUrl(): string {
-  return process.env.NETON_BACKEND_URL ?? "http://localhost:7080";
+  return process.env.NETON_BACKEND_URL ?? "http://localhost:8080";
 }
 
 /**

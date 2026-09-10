@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { KitLink } from "./nav";
 import { cn } from "../cn";
 import { Alert } from "./alert";
 import { Button } from "./button";
@@ -313,7 +314,7 @@ export function RowActions({ primary, more = [] }: { primary: RowAction[]; more?
     );
     const invoke = () => action.onClick?.();
     const content = <>{Icon && <Icon aria-hidden="true" className="h-3.5 w-3.5 shrink-0" strokeWidth={1.9} />}<span>{action.label}</span></>;
-    return action.href ? <a key={action.label} href={action.href} className={className}>{content}</a> : <button key={action.label} type="button" className={className} disabled={action.disabled} onClick={invoke}>{content}</button>;
+    return action.href ? <KitLink key={action.label} href={action.href} className={className}>{content}</KitLink> : <button key={action.label} type="button" className={className} disabled={action.disabled} onClick={invoke}>{content}</button>;
   }
   return <div className="flex justify-end gap-1">
     {primary.slice(0, 2).map((action) => actionNode(action, true))}
@@ -329,7 +330,7 @@ export function RowActions({ primary, more = [] }: { primary: RowAction[]; more?
           const content = <>{Icon && <Icon aria-hidden="true" />}<span>{action.label}</span></>;
           return action.href ? (
             <DropdownMenuItem key={action.label} asChild disabled={action.disabled} destructive={action.danger}>
-              <a href={action.href}>{content}</a>
+              <KitLink href={action.href}>{content}</KitLink>
             </DropdownMenuItem>
           ) : (
             <DropdownMenuItem key={action.label} disabled={action.disabled} destructive={action.danger} onSelect={action.onClick}>

@@ -9,4 +9,5 @@ export * from "./components/card";
 export * from "./components/table";
 export * from "./components/alert";
 export * from "./components/portal";
+export * from "./components/nav";
 export * from "./components/admin";

@@ -5,6 +5,11 @@ export interface NavItem {
   path: string;
   icon?: string | null;
   children?: NavItem[];
+  /**
+   * 分组标题。连续同 group 的条目归在一组，组名以小号灰字显示在上方。
+   * 不填则不分组 —— 导航少的时候分组只是噪音。
+   */
+  group?: string | null;
 }
 
 function joinPath(parent: string, own?: string | null): string {

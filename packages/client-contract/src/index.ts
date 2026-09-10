@@ -16,8 +16,25 @@ export interface FrontPageManifest {
   /** 包内页面入口：`<pkg>/pages/<entry>` 必须可被静态 import */
   entry: string;
   rendering: FrontPageRendering;
-  /** 不由后端菜单直接下发的模块内页面，路由由模块自己声明。 */
+  /** 不由后端菜单直接下发的模块内页面，例如 `/privchat/user/:id`。 */
   standalone?: boolean;
+  /**
+   * 决定**工作区实例身份**的参数名（路径参数或查询参数）。
+   *
+   * 只有这些参数变化才算「另一个资源」，才会新开页签；未列出的查询参数
+   * 一律视为视图状态（翻页、筛选、切 section），落在同一个页签里。
+   *
+   * 省略 = 单例页面（列表页、配置页）。
+   * 例：用户详情 `["id"]`；两人会话 `["uid", "peerUid"]`。
+   */
+  identity?: string[];
+  /**
+   * 页签默认标题，可用 `:name` 引用参数，如 `"用户详情 · :id"`。
+   *
+   * 页面加载完成后可以用 `useTabTitle()` 覆盖成更具体的名字。保留默认值是为了
+   * **首帧和加载失败时页签也有名字** —— 只靠页面发布会退化成无名页签。
+   */
+  title?: string;
 }
 
 export interface FrontContribution {

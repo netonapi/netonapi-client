@@ -1,8 +1,18 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import {
+  WorkspaceHost,
+  WorkspaceLink,
+  instanceTitle,
+  useCloseGuard,
+  useWorkspace,
+  useWorkspaceLinkDelegation,
+  useWorkspaceStore,
+  type WorkspaceInstance,
+  type WorkspacePage,
+  type WorkspaceUiAdapter,
+} from "@neton/application-front-workspace";
 import type { LucideIcon } from "lucide-react";
 import {
   Activity,
@@ -47,7 +57,7 @@ import {
 } from "lucide-react";
 import type { NavItem } from "@neton/application-client-runtime/menu";
 import type { PermissionInfo } from "@neton/application-client-runtime/types";
-import { FrontClientProvider } from "@neton/application-client-runtime/client-context";
+import { FrontClientProvider, useQueryClient } from "@neton/application-client-runtime/client-context";
 import { cn } from "@neton/application-client-kit";
 import { BrandMark } from "./brand-mark";
 
@@ -58,12 +68,6 @@ interface FlatNavItem {
   path: string;
   icon?: string | null;
   trail: string[];
-}
-
-interface PageTab {
-  name: string;
-  path: string;
-  pinned?: boolean;
 }
 
 const iconMap: Record<string, LucideIcon> = {
@@ -102,12 +106,28 @@ function flattenNav(items: NavItem[], parents: string[] = []): FlatNavItem[] {
   return flat;
 }
 
-function displayName(pathname: string, flatItems: FlatNavItem[]): string {
-  if (pathname === "/") return "工作台";
-  const exact = flatItems.find((item) => item.path === pathname);
-  if (exact) return exact.name;
-  const parent = [...flatItems].sort((a, b) => b.path.length - a.path.length).find((item) => pathname.startsWith(`${item.path}/`));
-  return parent ? `${parent.name}详情` : "页面";
+/**
+ * 当前激活页签的 pathname。
+ *
+ * 🔴 shell 一律用它，不用 `usePathname()`。实测（gate1）：宿主路由器的 hook 在我们
+ * pushState 时**不更新**，只在浏览器后退时突变 —— 挂在它上面的高亮、面包屑、
+ * 尤其是 `key={pathname}`，会在后退那一刻突然变化并炸掉子树。
+ */
+function useActivePath(): string {
+  const { instances, activeId } = useWorkspace();
+  return instances.find((i) => i.instanceId === activeId)?.location.pathname ?? "/";
+}
+
+/** 按 `group` 把连续同组的条目聚成段；相邻同名视为同一段，顺序完全由调用方决定。 */
+function groupNav(items: NavItem[]): Array<{ label: string | null; items: NavItem[] }> {
+  const sections: Array<{ label: string | null; items: NavItem[] }> = [];
+  for (const item of items) {
+    const label = item.group ?? null;
+    const last = sections[sections.length - 1];
+    if (last && last.label === label) last.items.push(item);
+    else sections.push({ label, items: [item] });
+  }
+  return sections;
 }
 
 function NavBranch({
@@ -123,7 +143,7 @@ function NavBranch({
   onNavigate(): void;
   onExpand(): void;
 }) {
-  const pathname = usePathname();
+  const pathname = useActivePath();
   const active = pathname === item.path || pathname.startsWith(`${item.path}/`);
   const hasChildren = Boolean(item.children?.length);
   const [open, setOpen] = React.useState(active);
@@ -188,8 +208,8 @@ function NavBranch({
   }
 
   return (
-    <Link
-      href={item.path}
+    <WorkspaceLink
+      to={item.path}
       onClick={onNavigate}
       className={cn(
         "group relative flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] transition-colors",
@@ -200,49 +220,28 @@ function NavBranch({
     >
       <Icon size={depth > 0 ? 15 : 16} strokeWidth={1.8} className="shrink-0" />
       <span className="truncate">{item.name}</span>
-    </Link>
+    </WorkspaceLink>
   );
 }
 
-function PageTabs({ flatItems }: { flatItems: FlatNavItem[] }) {
-  const pathname = usePathname();
-  const router = useRouter();
-  const currentName = displayName(pathname, flatItems);
-  const [tabs, setTabs] = React.useState<PageTab[]>([
-    { name: "工作台", path: "/", pinned: true },
-    ...(pathname === "/" ? [] : [{ name: currentName, path: pathname }]),
-  ]);
-  const [hydrated, setHydrated] = React.useState(false);
+/**
+ * 页签栏。
+ *
+ * 完全由工作区状态驱动：页签就是实例，激活即 `store.activate()` —— 它会把地址栏
+ * 同步成该实例的完整 URL（含 query），而实例本身不重建。
+ *
+ * 旧实现把页签 key 定成 `usePathname()`，因此丢掉 query（`?groupId=1` 与
+ * `?groupId=2` 塌成同一个页签，点开还打不开），并且靠菜单树反推名字（同一菜单
+ * 下的两个详情页会重名，菜单外的页面直接叫「页面」）。这三个症状同源，
+ * 换成 instanceId + resourceKey + 注册表标题后一并消失。
+ */
+function PageTabs() {
+  const store = useWorkspaceStore();
+  const { instances, activeId } = useWorkspace();
+  const closeTab = useCloseGuard();
   const [tabMenuOpen, setTabMenuOpen] = React.useState(false);
   const [scrollState, setScrollState] = React.useState({ left: false, right: false });
   const scrollRef = React.useRef<HTMLDivElement>(null);
-
-  React.useEffect(() => {
-    try {
-      const stored = JSON.parse(localStorage.getItem("neton-client-tabs") ?? "[]") as PageTab[];
-      if (Array.isArray(stored) && stored.length) {
-        const restored = [{ name: "工作台", path: "/", pinned: true }, ...stored.filter((tab) => tab.path !== "/")];
-        setTabs(restored.some((tab) => tab.path === pathname) ? restored : [...restored, { name: currentName, path: pathname }]);
-      }
-    } catch {
-      localStorage.removeItem("neton-client-tabs");
-    } finally {
-      setHydrated(true);
-    }
-  }, []);
-
-  React.useEffect(() => {
-    if (!hydrated) return;
-    setTabs((current) => {
-      if (current.some((tab) => tab.path === pathname)) return current;
-      return [...current, { name: currentName, path: pathname }];
-    });
-  }, [currentName, hydrated, pathname]);
-
-  React.useEffect(() => {
-    if (!hydrated) return;
-    localStorage.setItem("neton-client-tabs", JSON.stringify(tabs));
-  }, [hydrated, tabs]);
 
   const updateScrollState = React.useCallback(() => {
     const element = scrollRef.current;
@@ -260,63 +259,69 @@ function PageTabs({ flatItems }: { flatItems: FlatNavItem[] }) {
     const resizeObserver = new ResizeObserver(updateScrollState);
     resizeObserver.observe(element);
     return () => resizeObserver.disconnect();
-  }, [tabs, updateScrollState]);
+  }, [instances, updateScrollState]);
 
   React.useEffect(() => {
     const element = scrollRef.current;
-    const active = element?.querySelector<HTMLElement>(`[data-tab-path="${CSS.escape(pathname)}"]`);
+    if (!activeId) return;
+    const active = element?.querySelector<HTMLElement>(`[data-tab-instance="${CSS.escape(activeId)}"]`);
     active?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
     window.setTimeout(updateScrollState, 180);
-  }, [pathname, tabs, updateScrollState]);
-
-  function closeTab(tab: PageTab) {
-    setTabs((current) => {
-      const index = current.findIndex((item) => item.path === tab.path);
-      const next = current.filter((item) => item.path !== tab.path);
-      if (pathname === tab.path) router.push(next[Math.max(0, index - 1)]?.path ?? "/");
-      return next;
-    });
-  }
+  }, [activeId, instances, updateScrollState]);
 
   function scrollTabs(direction: -1 | 1) {
     scrollRef.current?.scrollBy({ left: direction * Math.max(220, scrollRef.current.clientWidth * 0.55), behavior: "smooth" });
     window.setTimeout(updateScrollState, 260);
   }
 
-  function renderTab(tab: PageTab, inMenu = false) {
-        const active = pathname === tab.path;
-        return (
-          <div
-            key={tab.path}
-            data-tab-path={inMenu ? undefined : tab.path}
-            className={cn(
-              inMenu
-                ? "group relative flex h-9 w-full cursor-pointer items-center gap-2 rounded-lg px-3 text-xs transition hover:bg-[var(--muted)]"
-                : "group relative flex h-8 shrink-0 cursor-pointer items-center gap-2 rounded-lg border px-3 text-xs font-medium transition-all",
-              !inMenu && (active
-                ? "border-[var(--border-strong)] bg-[var(--card)] text-[var(--foreground)] shadow-[var(--shadow-xs)]"
-                : "border-transparent text-[var(--muted-foreground)] hover:bg-[var(--card)] hover:text-[var(--foreground)]"),
-              inMenu && active && "bg-[var(--primary-soft)] font-medium text-[var(--primary)]",
-            )}
+  function renderTab(instance: WorkspaceInstance, inMenu = false) {
+    const active = instance.instanceId === activeId;
+    const title = instanceTitle(instance);
+    return (
+      <div
+        key={instance.instanceId}
+        data-tab-instance={inMenu ? undefined : instance.instanceId}
+        data-tab-href={instance.location.href}
+        title={instance.location.href}
+        className={cn(
+          inMenu
+            ? "group relative flex h-9 w-full cursor-pointer items-center gap-2 rounded-lg px-3 text-xs transition hover:bg-[var(--muted)]"
+            : "group relative flex h-8 shrink-0 cursor-pointer items-center gap-2 rounded-lg border px-3 text-xs font-medium transition-all",
+          !inMenu && (active
+            ? "border-[var(--border-strong)] bg-[var(--card)] text-[var(--foreground)] shadow-[var(--shadow-xs)]"
+            : "border-transparent text-[var(--muted-foreground)] hover:bg-[var(--card)] hover:text-[var(--foreground)]"),
+          inMenu && active && "bg-[var(--primary-soft)] font-medium text-[var(--primary)]",
+        )}
+      >
+        {/* 仍然渲染真 <a href>：中键/新窗口/复制链接必须照常可用，只接管普通左键 */}
+        <WorkspaceLink
+          to={instance.location.href}
+          aria-label={`打开${title}`}
+          onClick={(event) => {
+            event.preventDefault();
+            setTabMenuOpen(false);
+            store.activate(instance.instanceId);
+          }}
+          className="absolute inset-[-1px] z-0 rounded-lg"
+        />
+        <span className="pointer-events-none relative z-[1] flex items-center gap-2">
+          {instance.pinned && <Home size={13} />}
+          <span className="max-w-[13rem] truncate">{title}</span>
+          {instance.dirty && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--primary)]" aria-label="有未保存内容" />}
+        </span>
+        {!instance.pinned && (
+          <button
+            type="button"
+            aria-label={`关闭${title}`}
+            onClick={() => closeTab(instance.instanceId)}
+            className="relative z-10 rounded p-0.5 text-[var(--muted-foreground)] opacity-60 transition hover:bg-[var(--muted)] hover:text-[var(--foreground)] group-hover:opacity-100"
           >
-            <Link href={tab.path} aria-label={`打开${tab.name}`} onClick={() => setTabMenuOpen(false)} className="absolute inset-[-1px] z-0 rounded-lg" />
-            <span className="pointer-events-none relative z-[1] flex items-center gap-2">
-              {tab.pinned && <Home size={13} />}
-              {tab.name}
-            </span>
-            {!tab.pinned && (
-              <button
-                type="button"
-                aria-label={`关闭${tab.name}`}
-                onClick={() => closeTab(tab)}
-                className="relative z-10 rounded p-0.5 text-[var(--muted-foreground)] opacity-60 transition hover:bg-[var(--muted)] hover:text-[var(--foreground)] group-hover:opacity-100"
-              >
-                <X size={12} />
-              </button>
-            )}
-            {!inMenu && active && <span className="pointer-events-none absolute left-3 top-0 h-[2px] w-5 rounded-full bg-[var(--primary)]" />}
-          </div>
-        );
+            <X size={12} />
+          </button>
+        )}
+        {!inMenu && active && <span className="pointer-events-none absolute left-3 top-0 h-[2px] w-5 rounded-full bg-[var(--primary)]" />}
+      </div>
+    );
   }
 
   return (
@@ -325,7 +330,7 @@ function PageTabs({ flatItems }: { flatItems: FlatNavItem[] }) {
         <ChevronLeft size={15} />
       </button>
       <div ref={scrollRef} onScroll={updateScrollState} className="front-scrollbar-hidden flex min-w-0 flex-1 items-center gap-1 overflow-x-auto px-0.5">
-        {tabs.map((tab) => renderTab(tab))}
+        {instances.map((instance) => renderTab(instance))}
       </div>
       <button type="button" aria-label="向右滚动页签" disabled={!scrollState.right} onClick={() => scrollTabs(1)} className="ml-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[var(--muted-foreground)] transition hover:bg-[var(--card)] hover:text-[var(--foreground)] disabled:opacity-25">
         <ChevronRight size={15} />
@@ -335,11 +340,36 @@ function PageTabs({ flatItems }: { flatItems: FlatNavItem[] }) {
           <List size={15} />
         </button>
         {tabMenuOpen && <><button type="button" aria-label="关闭页签列表" className="fixed inset-0 z-[80] cursor-default" onClick={() => setTabMenuOpen(false)} /><div className="absolute right-0 top-9 z-[90] w-64 overflow-hidden rounded-xl border border-[var(--border-strong)] bg-[var(--popover)] p-1.5 shadow-[var(--shadow-md)]">
-          <div className="flex items-center justify-between px-2 py-2"><span className="text-[10px] font-semibold tracking-[0.12em] text-[var(--muted-foreground)]">OPEN WORKSPACES</span><span className="text-[10px] text-[var(--muted-foreground)]">{tabs.length}</span></div>
-          <div className="max-h-72 space-y-0.5 overflow-y-auto">{tabs.map((tab) => renderTab(tab, true))}</div>
+          <div className="flex items-center justify-between px-2 py-2"><span className="text-[10px] font-semibold tracking-[0.12em] text-[var(--muted-foreground)]">OPEN WORKSPACES</span><span className="text-[10px] text-[var(--muted-foreground)]">{instances.length}</span></div>
+          <div className="max-h-72 space-y-0.5 overflow-y-auto">{instances.map((instance) => renderTab(instance, true))}</div>
         </div></>}
       </div>
     </div>
+  );
+}
+
+/**
+ * 刷新：只让数据缓存失效，不动页面实例。
+ *
+ * 旧实现调 `router.refresh()` —— 那是宿主路由级刷新，会把整棵页面子树重建，
+ * 正是本次要消灭的行为。管理后台里「刷新」的语义本来就是重新取数。
+ */
+function RefreshButton() {
+  const queryClient = useQueryClient();
+  const [refreshing, setRefreshing] = React.useState(false);
+  return (
+    <button
+      type="button"
+      title="刷新数据"
+      onClick={() => {
+        setRefreshing(true);
+        void queryClient.invalidateQueries();
+        window.setTimeout(() => setRefreshing(false), 650);
+      }}
+      className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--muted-foreground)] transition hover:bg-[var(--muted)] hover:text-[var(--foreground)]"
+    >
+      <RefreshCw size={17} className={refreshing ? "animate-spin" : ""} />
+    </button>
   );
 }
 
@@ -352,7 +382,7 @@ function CommandPalette({
   items: FlatNavItem[];
   onClose(): void;
 }) {
-  const router = useRouter();
+  const store = useWorkspaceStore();
   const [query, setQuery] = React.useState("");
   const inputRef = React.useRef<HTMLInputElement>(null);
   const results = items.filter((item) => `${item.name} ${item.trail.join(" ")}`.toLowerCase().includes(query.toLowerCase()));
@@ -395,7 +425,7 @@ function CommandPalette({
                 key={item.path}
                 type="button"
                 onClick={() => {
-                  router.push(item.path);
+                  store.open(item.path);
                   onClose();
                 }}
                 className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors hover:bg-[var(--primary-soft)]"
@@ -424,17 +454,24 @@ export function AppShell({
   user,
   roles,
   permissions,
-  children,
+  pages,
+  ui,
 }: {
   items: NavItem[];
   user: FrontUser;
   roles: string[];
   permissions: string[];
-  children: React.ReactNode;
+  /** 已安装页面表；实例由工作区宿主渲染，shell 不再有单一 children 插槽。 */
+  pages: WorkspacePage[];
+  /** 本发行版使用的 UI 套件适配（弹层宿主 + 导航）。 */
+  ui: WorkspaceUiAdapter;
 }) {
-  const pathname = usePathname();
-  const router = useRouter();
+  const pathname = useActivePath();
+  const store = useWorkspaceStore();
+  const { instances, activeId } = useWorkspace();
   const flatItems = React.useMemo(() => flattenNav(items), [items]);
+  // 迁移垫片：接管尚未换成 WorkspaceLink 的原生 <a href>（业务模块里还有）。
+  useWorkspaceLinkDelegation(pages);
   const current = flatItems.find((item) => item.path === pathname)
     ?? [...flatItems].sort((a, b) => b.path.length - a.path.length).find((item) => pathname.startsWith(`${item.path}/`));
   const [collapsed, setCollapsed] = React.useState(false);
@@ -442,7 +479,6 @@ export function AppShell({
   const [searchOpen, setSearchOpen] = React.useState(false);
   const [profileOpen, setProfileOpen] = React.useState(false);
   const [noticeOpen, setNoticeOpen] = React.useState(false);
-  const [refreshing, setRefreshing] = React.useState(false);
   const [fullscreen, setFullscreen] = React.useState(false);
   const [darkMode, setDarkMode] = React.useState(false);
 
@@ -478,6 +514,7 @@ export function AppShell({
   }
 
   async function logout() {
+    // C 端仍走 Node 代理清 Cookie（保留 SSR 形态，见受保护布局的注释）。
     await fetch("/api/auth/logout", { method: "POST" });
     window.location.href = "/login";
   }
@@ -498,11 +535,15 @@ export function AppShell({
   }
 
   const initials = (user.nickname || user.username || "N").slice(0, 1).toUpperCase();
-  const trails = current?.trail ? [...current.trail, ...(pathname === current.path ? [] : ["详情"])] : (pathname === "/" ? ["工作台"] : ["页面"]);
+  const activeInstance = instances.find((i) => i.instanceId === activeId);
+  const activeTitle = activeInstance ? instanceTitle(activeInstance) : "页面";
+  const trails = current?.trail
+    ? [...current.trail, ...(pathname === current.path ? [] : [activeTitle])]
+    : (pathname === "/" ? ["工作台"] : [activeTitle]);
   const sidebarCompact = collapsed && !mobileOpen;
 
   return (
-    <FrontClientProvider permissions={permissions} roles={roles}>
+    <FrontClientProvider permissions={permissions} roles={roles} user={user}>
       <div className="flex h-screen overflow-hidden bg-[var(--front-canvas)]">
       {mobileOpen && <button aria-label="关闭导航" className="fixed inset-0 z-30 bg-[#09090b]/45 backdrop-blur-sm lg:hidden" onClick={() => setMobileOpen(false)} />}
 
@@ -532,8 +573,8 @@ export function AppShell({
         </div>
 
         <nav className={cn("min-h-0 flex-1 overflow-y-auto py-4", sidebarCompact ? "space-y-1 px-2" : "px-2.5")}>
-          <Link
-            href="/"
+          <WorkspaceLink
+            to="/"
             onClick={() => setMobileOpen(false)}
             title="工作台"
             className={cn(
@@ -546,17 +587,27 @@ export function AppShell({
           >
             <Home size={18} strokeWidth={1.8} />
             {!sidebarCompact && <span>工作台</span>}
-          </Link>
+          </WorkspaceLink>
           <div className="space-y-0.5">
-            {items.map((item) => (
-              <NavBranch
-                key={item.path}
-                item={item}
-                depth={0}
-                collapsed={sidebarCompact}
-                onNavigate={() => setMobileOpen(false)}
-                onExpand={() => setCollapsed(false)}
-              />
+            {groupNav(items).map((section, index) => (
+              <div key={section.label ?? `g${index}`} className={index > 0 ? "pt-4" : undefined}>
+                {/* 收起时不显示组名：16px 宽度放不下，留着只会变成噪音 */}
+                {section.label && !sidebarCompact && (
+                  <div className="px-3 pb-1.5 text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--muted-foreground)]">
+                    {section.label}
+                  </div>
+                )}
+                {section.items.map((item) => (
+                  <NavBranch
+                    key={item.path}
+                    item={item}
+                    depth={0}
+                    collapsed={sidebarCompact}
+                    onNavigate={() => setMobileOpen(false)}
+                    onExpand={() => setCollapsed(false)}
+                  />
+                ))}
+              </div>
             ))}
           </div>
         </nav>
@@ -614,18 +665,7 @@ export function AppShell({
                 <Command size={9} />K
               </span>
             </button>
-            <button
-              type="button"
-              title="刷新页面"
-              onClick={() => {
-                setRefreshing(true);
-                router.refresh();
-                window.setTimeout(() => setRefreshing(false), 650);
-              }}
-              className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--muted-foreground)] transition hover:bg-[var(--muted)] hover:text-[var(--foreground)]"
-            >
-              <RefreshCw size={17} className={refreshing ? "animate-spin" : ""} />
-            </button>
+            <RefreshButton />
             <button type="button" title={fullscreen ? "退出全屏" : "全屏"} onClick={toggleFullscreen} className="hidden h-9 w-9 items-center justify-center rounded-md text-[var(--muted-foreground)] transition hover:bg-[var(--muted)] hover:text-[var(--foreground)] sm:flex">
               {fullscreen ? <Minimize2 size={17} /> : <Maximize2 size={17} />}
             </button>
@@ -697,12 +737,18 @@ export function AppShell({
           </div>
         </header>
 
-        <PageTabs flatItems={flatItems} />
+        <PageTabs />
 
-        <main className="front-shell-main relative z-0 min-h-0 flex-1 overflow-auto">
-          <div key={pathname} className="front-page-enter mx-auto w-full max-w-[1640px] p-4 md:p-6 lg:p-8">
-            {children}
-          </div>
+        {/*
+          持久实例宿主取代原来的单一 outlet。
+          原来这里是 `<div key={pathname}>{children}</div>` —— 两个致命点：
+            1. 单 outlet：路由一变旧页面就被卸载，页签切换必然丢状态；
+            2. `key={pathname}`：宿主 hook 只在浏览器后退时突变，于是「后退」会静默
+               炸掉整棵子树，比每次切换都重建更难发现。
+          现在滚动容器下沉到每个实例内部（见 WorkspaceHost），所以这里不再 overflow-auto。
+        */}
+        <main className="front-shell-main relative z-0 min-h-0 flex-1 overflow-hidden">
+          <WorkspaceHost pages={pages} ui={ui} />
         </main>
       </div>
 
