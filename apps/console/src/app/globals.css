@@ -1,5 +1,17 @@
 @import "tailwindcss";
+/*
+ * Tailwind 扫描范围。
+ *
+ * 🔴 console 自己的 src 是自动扫描的，但**工作区宿主与所有业务模块页面都在
+ * node_modules 里**（都是 file: 依赖），不显式 @source 就扫不到 —— 只出现在那些
+ * 文件里的类不会进产物，页面不报错，只是布局悄悄塌掉（网格退化成单列）。
+ *
+ * `packages` 是本发行版自有的 client-* 套件；node_modules 覆盖共享的工作区运行时
+ * 和各业务模块。
+ */
 @source "../../../../packages";
+@source "../../node_modules/@neton";
+@source "../../../node_modules/@neton";
 
 /* shadcn radius scale: menus < controls < navigation < surfaces. */
 @theme inline {
