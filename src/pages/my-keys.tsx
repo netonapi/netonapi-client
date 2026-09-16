@@ -15,6 +15,40 @@ interface MyToken {
 }
 
 interface IssuedToken { id: number; key: string; display: string }
+interface PublicInfo { apiBase?: string | null; endpoints: { path: string; protocol: string; capability: string }[] }
+
+/**
+ * 接入说明。地址来自后端的公开信息接口（运维配 NEWGATE_PUBLIC_API_URL），不从浏览器地址栏猜：
+ * 控制台与网关不一定同域。没配就把占位符原样摆出来并让用户去问管理员，别编一个假地址。
+ */
+function IntegrationCard({ info, sampleKey }: { info: PublicInfo | null; sampleKey: string }) {
+  const base = info?.apiBase ?? "https://<网关地址>";
+  const pre: React.CSSProperties = { fontSize: 12, margin: "4px 0 10px", padding: 10, borderRadius: 6, overflowX: "auto", background: "var(--muted, rgba(127,127,127,0.12))" };
+  return (
+    <div style={{ margin: "12px 0", padding: 12, border: "1px solid var(--border, currentColor)", borderRadius: 8 }}>
+      <p style={{ margin: "0 0 6px", fontWeight: 600 }}>接入方式</p>
+      {info && !info.apiBase ? (
+        <p style={{ margin: "0 0 8px", fontSize: 12, color: "var(--muted-foreground)" }}>管理员尚未配置对外地址，请向管理员索取网关地址后替换下面的占位符。</p>
+      ) : null}
+      <p style={{ margin: "6px 0 2px", fontSize: 13 }}>OpenAI SDK：把 base_url 指向本网关，其余不变</p>
+      <pre style={pre}>{`from openai import OpenAI
+client = OpenAI(base_url="${base}/v1", api_key="${sampleKey}")`}</pre>
+      <p style={{ margin: "6px 0 2px", fontSize: 13 }}>Anthropic SDK</p>
+      <pre style={pre}>{`from anthropic import Anthropic
+client = Anthropic(base_url="${base}", api_key="${sampleKey}")`}</pre>
+      <p style={{ margin: "6px 0 2px", fontSize: 13 }}>curl</p>
+      <pre style={pre}>{`curl ${base}/v1/chat/completions \\
+  -H "Authorization: Bearer ${sampleKey}" \\
+  -H "Content-Type: application/json" \\
+  -d '{"model": "gpt-4o", "messages": [{"role": "user", "content": "hi"}]}'`}</pre>
+      {info ? (
+        <p style={{ margin: 0, fontSize: 12, color: "var(--muted-foreground)" }}>
+          可用端点：{info.endpoints.map((e) => e.path).join("、")}。Gemini 客户端把 API 地址指向 {base} 即可。
+        </p>
+      ) : null}
+    </div>
+  );
+}
 
 /** 我的 API Key。明文只在创建后展示一次——服务端只存哈希，之后谁也取不回。 */
 export default function Page() {
@@ -24,6 +58,7 @@ export default function Page() {
   const [creating, setCreating] = React.useState(false);
   const [form, setForm] = React.useState({ name: "", quotaBudget: "" });
   const [issued, setIssued] = React.useState<IssuedToken | null>(null);
+  const [info, setInfo] = React.useState<PublicInfo | null>(null);
 
   const load = React.useCallback(async () => {
     setLoading(true); setError(null);
@@ -33,6 +68,11 @@ export default function Page() {
   }, []);
 
   React.useEffect(() => { void load(); }, [load]);
+  React.useEffect(() => {
+    let alive = true;
+    apiFetch<PublicInfo>("/app/gateway/public-info").then((i) => { if (alive) setInfo(i); }).catch(() => { /* 接入说明缺失不影响管理 Key */ });
+    return () => { alive = false; };
+  }, []);
 
   async function create() {
     setError(null);
@@ -102,6 +142,8 @@ export default function Page() {
       ) : null}
 
       <DataTable columns={columns} rows={rows} loading={loading} rowKey={(r) => r.id} />
+
+      <IntegrationCard info={info} sampleKey={issued?.key ?? "sk-你的Key"} />
 
       <Drawer open={creating} onClose={() => setCreating(false)} title="创建 API Key">
         <Field label="名称"><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>

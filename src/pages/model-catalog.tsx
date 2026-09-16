@@ -9,7 +9,10 @@ interface PublicModel {
   inputPrice: string; outputPrice: string; cacheReadPrice: string;
   perRequestPrice?: number | null;
   defaultMaxOutputTokens?: number | null;
+  capabilities?: string[];
 }
+
+const CAP_LABEL: Record<string, string> = { chat: "对话", embeddings: "向量", images: "图片" };
 
 /** 模型广场。未登录也能看——这是拉新入口，只暴露模型名与价格。 */
 export default function Page() {
@@ -28,6 +31,7 @@ export default function Page() {
 
   const columns: DataColumn<PublicModel>[] = [
     { key: "model", header: "模型", cell: (r) => r.model },
+    { key: "capabilities", header: "能力", cell: (r) => (r.capabilities ?? []).map((c) => CAP_LABEL[c] ?? c).join(" / ") || "—" },
     {
       key: "inputPrice", header: "输入价 / 1M",
       cell: (r) => (r.perRequestPrice != null ? "—" : `$${r.inputPrice}`),
