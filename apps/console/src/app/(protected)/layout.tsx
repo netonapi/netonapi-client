@@ -28,7 +28,7 @@ export default async function ProtectedLayout() {
         username: member.username ?? "",
         nickname: member.nickname ?? member.username ?? `用户${member.id}`,
         avatar: member.avatar ?? "",
-        homePath: "/",
+        homePath: "/gateway/usage",
       }}
     />
   );

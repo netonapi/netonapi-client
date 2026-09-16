@@ -11,6 +11,11 @@ export default function RegisterPage() {
   const [confirm, setConfirm] = React.useState("");
   const [nickname, setNickname] = React.useState("");
   const [inviteCode, setInviteCode] = React.useState("");
+  // 邀请链接 /register?invite=CODE：预填邀请码。读 location 而不是 useSearchParams，省掉 Suspense 边界。
+  React.useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get("invite");
+    if (code) setInviteCode(code);
+  }, []);
   const [passwordVisible, setPasswordVisible] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [pending, setPending] = React.useState(false);
