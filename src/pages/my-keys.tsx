@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { apiFetch, apiWrite } from "@neton/application-client-runtime/client";
+import { formatDateTime } from "@neton/application-client-runtime/types";
 import {
   Button, DataTable, Drawer, Field, Input, PageHeader, RowActions, StatusBadge,
   type DataColumn, type RowAction,
@@ -9,13 +10,49 @@ import {
 
 interface MyToken {
   id: number; name: string; display: string;
-  quotaBudget?: number | null; quotaUsed: number;
+  quotaBudget?: number | null; quotaUsed: number; expiresAt?: number | null;
+  allowedModels: string; allowedIps: string;
   rpmLimit?: number | null; tpmLimit?: number | null; concurrencyLimit?: number | null;
   status: number; createdAt?: number | null;
 }
 
 interface IssuedToken { id: number; key: string; display: string }
 interface PublicInfo { apiBase?: string | null; endpoints: { path: string; protocol: string; capability: string }[] }
+
+/** 表单里预算用美元、有效期用日期；提交时换算成后端的 μUSD 与毫秒时间戳。 */
+interface TokenForm { name: string; budgetUsd: string; expiresOn: string; allowedModels: string; allowedIps: string }
+const EMPTY_FORM: TokenForm = { name: "", budgetUsd: "", expiresOn: "", allowedModels: "", allowedIps: "" };
+
+const usd = (micro: number) => `$${(micro / 1_000_000).toFixed(4)}`;
+
+function toForm(t: MyToken): TokenForm {
+  return {
+    name: t.name,
+    budgetUsd: t.quotaBudget != null ? String(t.quotaBudget / 1_000_000) : "",
+    expiresOn: t.expiresAt ? new Date(t.expiresAt).toISOString().slice(0, 10) : "",
+    allowedModels: t.allowedModels ?? "",
+    allowedIps: t.allowedIps ?? "",
+  };
+}
+
+/** 表单 → 请求体；返回错误文案或 null。 */
+function toBody(f: TokenForm): { body: Record<string, unknown>; error: string | null } {
+  const body: Record<string, unknown> = { name: f.name.trim(), allowedModels: f.allowedModels.trim(), allowedIps: f.allowedIps.trim() };
+  if (!body.name) return { body, error: "请填写名称" };
+  if (f.budgetUsd.trim()) {
+    const v = Number(f.budgetUsd);
+    if (!Number.isFinite(v) || v <= 0) return { body, error: "预算必须是大于 0 的美元数" };
+    body.quotaBudget = Math.round(v * 1_000_000);
+  }
+  if (f.expiresOn.trim()) {
+    // 取当天 23:59:59（本地时区）：用户填「到 6 月 30 日」的意思是那天还能用
+    const t = new Date(`${f.expiresOn}T23:59:59`).getTime();
+    if (!Number.isFinite(t)) return { body, error: "有效期格式不对" };
+    if (t <= Date.now()) return { body, error: "有效期必须在今天之后" };
+    body.expiresAt = t;
+  }
+  return { body, error: null };
+}
 
 /**
  * 接入说明。地址来自后端的公开信息接口（运维配 NEWGATE_PUBLIC_API_URL），不从浏览器地址栏猜：
@@ -55,8 +92,8 @@ export default function Page() {
   const [rows, setRows] = React.useState<MyToken[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-  const [creating, setCreating] = React.useState(false);
-  const [form, setForm] = React.useState({ name: "", quotaBudget: "" });
+  const [editing, setEditing] = React.useState<{ id: number | null; form: TokenForm } | null>(null);
+  const [busy, setBusy] = React.useState(false);
   const [issued, setIssued] = React.useState<IssuedToken | null>(null);
   const [info, setInfo] = React.useState<PublicInfo | null>(null);
 
@@ -74,15 +111,19 @@ export default function Page() {
     return () => { alive = false; };
   }, []);
 
-  async function create() {
-    setError(null);
+  async function submit() {
+    if (!editing) return;
+    const { body, error: e } = toBody(editing.form);
+    if (e) { setError(e); return; }
+    setError(null); setBusy(true);
     try {
-      const body: Record<string, unknown> = { name: form.name };
-      if (form.quotaBudget) body.quotaBudget = Number(form.quotaBudget);
-      setIssued(await apiWrite<IssuedToken>("/app/gateway/token/create", "POST", body));
-      setCreating(false); setForm({ name: "", quotaBudget: "" });
-      void load();
-    } catch (cause) { setError((cause as Error).message); }
+      if (editing.id == null) {
+        setIssued(await apiWrite<IssuedToken>("/app/gateway/token/create", "POST", body));
+      } else {
+        await apiWrite("/app/gateway/token/update", "PUT", { id: editing.id, ...body });
+      }
+      setEditing(null); void load();
+    } catch (cause) { setError((cause as Error).message); } finally { setBusy(false); }
   }
 
   async function setStatus(row: MyToken, status: number) {
@@ -94,6 +135,7 @@ export default function Page() {
   }
 
   async function remove(row: MyToken) {
+    if (!window.confirm(`删除 Key「${row.name}」？正在使用它的程序会立即收到 401，且不可恢复。`)) return;
     setError(null);
     try {
       await apiWrite(`/app/gateway/token/delete/${row.id}`, "DELETE", {});
@@ -102,22 +144,35 @@ export default function Page() {
   }
 
   const actions = (row: MyToken): RowAction[] => [
+    { label: "编辑", onClick: () => { setError(null); setEditing({ id: row.id, form: toForm(row) }); } },
     row.status === 1
       ? { label: "停用", onClick: () => void setStatus(row, 0) }
       : { label: "启用", onClick: () => void setStatus(row, 1) },
     { label: "删除", onClick: () => void remove(row) },
   ];
 
+  const expired = (r: MyToken) => r.expiresAt != null && r.expiresAt < Date.now();
+  const limits = (r: MyToken) => {
+    const parts: string[] = [];
+    if (r.rpmLimit != null) parts.push(`RPM ${r.rpmLimit}`);
+    if (r.tpmLimit != null) parts.push(`TPM ${r.tpmLimit}`);
+    if (r.concurrencyLimit != null) parts.push(`并发 ${r.concurrencyLimit}`);
+    return parts.length ? parts.join(" · ") : "不限";
+  };
+
   const columns: DataColumn<MyToken>[] = [
     { key: "name", header: "名称", cell: (r) => r.name },
-    { key: "display", header: "Key", cell: (r) => r.display },
-    { key: "quotaUsed", header: "已用 μUSD", cell: (r) => r.quotaUsed },
-    { key: "quotaBudget", header: "预算", cell: (r) => r.quotaBudget ?? "不限" },
-    { key: "rpmLimit", header: "RPM", cell: (r) => r.rpmLimit ?? "不限" },
-    { key: "concurrencyLimit", header: "并发", cell: (r) => r.concurrencyLimit ?? "不限" },
-    { key: "status", header: "状态", cell: (r) => <StatusBadge active={r.status === 1}>{r.status === 1 ? "启用" : "停用"}</StatusBadge> },
+    { key: "display", header: "Key", cell: (r) => <code>{r.display}</code> },
+    { key: "quota", header: "已用 / 预算", cell: (r) => `${usd(r.quotaUsed)} / ${r.quotaBudget != null ? usd(r.quotaBudget) : "不限"}` },
+    { key: "models", header: "模型范围", cell: (r) => r.allowedModels ? r.allowedModels : "全部" },
+    { key: "limits", header: "限速（运营设定）", cell: limits },
+    { key: "expiresAt", header: "有效期", cell: (r) => (r.expiresAt ? formatDateTime(r.expiresAt) : "长期") },
+    { key: "status", header: "状态", cell: (r) => <StatusBadge active={r.status === 1 && !expired(r)}>{expired(r) ? "已过期" : r.status === 1 ? "启用" : "停用"}</StatusBadge> },
     { key: "actions", header: "操作", cell: (row) => <RowActions primary={actions(row)} /> },
   ];
+
+  const f = editing?.form ?? EMPTY_FORM;
+  const setF = (patch: Partial<TokenForm>) => setEditing((cur) => (cur ? { ...cur, form: { ...cur.form, ...patch } } : cur));
 
   return (
     <div>
@@ -128,14 +183,15 @@ export default function Page() {
       />
       {error ? <p role="alert">{error}</p> : null}
       <div style={{ margin: "12px 0" }}>
-        <Button onClick={() => setCreating(true)}>创建 Key</Button>
+        <Button onClick={() => { setError(null); setEditing({ id: null, form: EMPTY_FORM }); }}>创建 Key</Button>
       </div>
 
       {issued ? (
         <div style={{ margin: "12px 0", padding: 12, border: "1px solid currentColor", borderRadius: 8 }}>
           <p><strong>请立即复制保存，这串明文不会再显示：</strong></p>
           <code style={{ wordBreak: "break-all" }}>{issued.key}</code>
-          <div style={{ marginTop: 8 }}>
+          <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
+            <Button variant="secondary" onClick={() => { void navigator.clipboard?.writeText(issued.key); }}>复制</Button>
             <Button onClick={() => setIssued(null)}>我已保存</Button>
           </div>
         </div>
@@ -145,13 +201,25 @@ export default function Page() {
 
       <IntegrationCard info={info} sampleKey={issued?.key ?? "sk-你的Key"} />
 
-      <Drawer open={creating} onClose={() => setCreating(false)} title="创建 API Key">
-        <Field label="名称"><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
-        <Field label="预算 μUSD（留空则不限，仍受账户余额约束）">
-          <Input value={form.quotaBudget} onChange={(e) => setForm({ ...form, quotaBudget: e.target.value })} />
+      <Drawer open={editing !== null} onClose={() => setEditing(null)} title={editing?.id == null ? "创建 API Key" : "编辑 API Key"}>
+        <Field label="名称"><Input value={f.name} onChange={(e) => setF({ name: e.target.value })} placeholder="例如 生产环境 / 本地调试" /></Field>
+        <Field label="预算（美元，留空则不限，仍受账户余额约束）">
+          <Input value={f.budgetUsd} onChange={(e) => setF({ budgetUsd: e.target.value })} placeholder="例如 20" inputMode="decimal" />
         </Field>
+        <Field label="有效期（留空则长期有效）">
+          <Input type="date" value={f.expiresOn} onChange={(e) => setF({ expiresOn: e.target.value })} />
+        </Field>
+        <Field label="允许的模型（逗号分隔，留空则全部）">
+          <Input value={f.allowedModels} onChange={(e) => setF({ allowedModels: e.target.value })} placeholder="gpt-4o,claude-sonnet-4" />
+        </Field>
+        <Field label="允许的来源 IP（逗号分隔，留空则不限）">
+          <Input value={f.allowedIps} onChange={(e) => setF({ allowedIps: e.target.value })} placeholder="1.2.3.4,10.0.0.0/8" />
+        </Field>
+        <p style={{ margin: "6px 0 0", fontSize: 12, color: "var(--muted-foreground)" }}>
+          RPM / TPM / 并发上限由平台设定，如需调整请联系管理员。
+        </p>
         <div style={{ marginTop: 12 }}>
-          <Button onClick={() => void create()}>创建</Button>
+          <Button onClick={() => void submit()} disabled={busy}>{busy ? "保存中…" : editing?.id == null ? "创建" : "保存"}</Button>
         </div>
       </Drawer>
     </div>
