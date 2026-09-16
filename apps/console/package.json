@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "predev": "tsx ../../scripts/generate-registry.mts",
-    "dev": "next dev",
+    "dev": "next dev -p 8880",
     "prebuild": "tsx ../../scripts/generate-registry.mts",
     "build": "next build",
     "start": "next start",

@@ -45,7 +45,7 @@ RUN pnpm --filter @neton/application-client-console build
 WORKDIR /src/NewGate/newgate-client/apps/console
 # 控制台的浏览器请求全部经本进程的 /api/backend 服务端代理转发（cookie → Bearer），
 # 所以只需运行期的内网后端地址，不需要构建期的公网基址、也不涉及 CORS。
-ENV NETON_BACKEND_URL=http://newgate:7080
+ENV NETON_BACKEND_URL=http://newgate:8800
 ENV PORT=3000
 EXPOSE 3000
 HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=5 \
