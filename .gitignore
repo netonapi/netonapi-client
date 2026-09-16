@@ -3,6 +3,6 @@ node_modules/
 dist/
 *.tsbuildinfo
 .turbo/
-apps/shell/src/generated/
+apps/*/src/generated/
 .env*.local
 .DS_Store
