@@ -139,6 +139,7 @@ export default function LoginPage() {
               <div className="mt-7 flex items-start gap-2.5 border-t border-[var(--border)] pt-5 text-[11px] leading-5 text-[var(--muted-foreground)]">
                 <ShieldCheck size={15} className="mt-0.5 shrink-0 text-[var(--primary)]" />
                 <span>还没有账号？<a href="/register" className="font-medium text-[var(--primary)] hover:underline">立即注册</a></span>
+                <a href="/forgot-password" className="font-medium text-[var(--muted-foreground)] hover:underline">忘记密码</a>
               </div>
             </div>
           </section>
