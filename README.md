@@ -9,7 +9,7 @@ NanoGate 自助侧前端（仓名 `nanogate-client`）：用户在这里领 API 
 > 但用户侧没有收银台 —— 额度目前只能靠运营手工发放或兑换码进账。详见「已知缺口」。
 
 后端是 [`nanogate-backend`](https://github.com/zoujiaqing/nanogate-backend)（默认
-`http://localhost:7080`）；部署与密钥说明见 `nanogate` 仓的
+`http://localhost:8800`）；部署与密钥说明见 `nanogate` 仓的
 [`DEPLOY.md`](https://github.com/zoujiaqing/nanogate/blob/main/DEPLOY.md)。
 
 | | |
@@ -98,19 +98,12 @@ pnpm build
 
 ## 已知缺口
 
-- **没有在线收银台**：`billing.tsx` 只有兑换码与「模拟充值」（后者要后端显式开
-  `NEWGATE_ENABLE_MOCK_RECHARGE`，生产默认关，否则就是个白送额度的接口）。后端契约完整 ——
-  `POST /app/gateway/recharge` 下单、`GET /app/gateway/recharge/get/{rechargeId}` 回读状态、
-  `GET /app/pay/channel/list` 给出每条通道的 `displayMode`。缺的是用户侧的渠道选择与
-  `displayMode` 分派。开工前必须先定的三件事（两种 displayMode 在纯 Web 没有通用解、
-  汇率未配时用户会看到一个读不懂的 500、payload 不保证是绝对 URL）记在 `nanogate` 仓的
-  [`docs/backlog/RECHARGE-CHECKOUT-UI-P1.md`](https://github.com/zoujiaqing/nanogate/blob/main/docs/backlog/RECHARGE-CHECKOUT-UI-P1.md)。
-- `console.nav.ts` 的静态导航**已经接上**（5 条，与 console 装配的 5 个页面一一对应；
-  harness S52 钉住「装配了的页面必须有入口、入口必须有页面、icon 名必须存在」）。
-  但 `(protected)/layout.tsx` 给 `AppShell` 传的 `roles` 与 `permissions` 仍是空数组 ——
-  这是**有意的**，不是没做完的一半：用户侧不做前端权限门控，能看什么由后端接口按 identity
-  隔离（用量、流水、Key 都只返回本人的行），侧栏藏页面不构成安全边界。别去「补」它。
-- 没有 `(public)` 公开路由组（定价页、注册页这类不需要登录的页面要自己加）。
+- 在线收银台已有（选渠道 → 下单 → 跳转 / 二维码 / SDK 参数 → 轮询到账），但只在沙箱渠道下端到端验证过；
+  真实支付宝 / 微信商户号要上线前再走一遍。二维码是页内 SVG 编码（已与 python-qrcode 逐位比对到版本 10）。
+- `(protected)/layout.tsx` 给 `AppShell` 传的 `roles` 与 `permissions` 仍是空数组——这是**有意的**：
+  用户侧不做前端权限门控，能看什么由后端接口按 identity 隔离，侧栏藏页面不构成安全边界。别去「补」它。
+- 公开页只有 `(auth)` 组里的登录 / 注册 / 找回密码；定价页这类不登录也想看的页面要自己加路由组。
+- 没有公告、两步验证。
 
 ## 许可
 
