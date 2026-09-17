@@ -12,7 +12,7 @@ interface PublicModel {
   capabilities?: string[];
 }
 
-const CAP_LABEL: Record<string, string> = { chat: "对话", embeddings: "向量", images: "图片" };
+const CAP_LABEL: Record<string, string> = { chat: "对话", embeddings: "向量", images: "图片", rerank: "重排序", audio: "音频" };
 
 /** 模型广场。未登录也能看——这是拉新入口，只暴露模型名与价格。 */
 export default function Page() {
