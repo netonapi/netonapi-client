@@ -28,6 +28,27 @@ const usd = (micro: number) => `$${(micro / 1_000_000).toFixed(4)}`;
 const fmt = (n: number) => n.toLocaleString("zh-CN");
 const STATUS_LABEL: Record<string, string> = { ok: "成功", partial: "未完整", error: "失败" };
 
+/** 纯 SVG 柱状图，够看趋势就行。 */
+function BarChart({ points, valueOf, format }: { points: Stats["daily"]; valueOf: (d: Stats["daily"][number]) => number; format: (n: number) => string }) {
+  if (points.length === 0) return <p style={{ fontSize: 12, color: "var(--muted-foreground)" }}>暂无数据</p>;
+  const w = 720, h = 120, pad = 24, bw = Math.max(4, (w - pad * 2) / points.length - 4);
+  const max = Math.max(1, ...points.map(valueOf));
+  return (
+    <svg viewBox={`0 0 ${w} ${h + 28}`} width="100%" height={h + 28} role="img" aria-label="按日消费">
+      {points.map((p, i) => {
+        const v = valueOf(p); const bh = Math.round((v / max) * h);
+        const x = pad + i * ((w - pad * 2) / points.length);
+        return (
+          <g key={p.date}>
+            <rect x={x} y={h - bh} width={bw} height={bh} rx={2} fill="currentColor" opacity={0.7}><title>{`${p.date}: ${format(v)}`}</title></rect>
+            {points.length <= 31 || i % 7 === 0 ? <text x={x + bw / 2} y={h + 16} fontSize={10} textAnchor="middle" fill="currentColor" opacity={0.6}>{p.date.slice(5)}</text> : null}
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
 export default function Page() {
   const [balance, setBalance] = React.useState<Balance | null>(null);
   const [stats, setStats] = React.useState<Stats | null>(null);
@@ -114,6 +135,10 @@ export default function Page() {
       <div style={{ display: "flex", gap: 6, margin: "12px 0" }}>
         {[7, 30, 90].map((n) => <Button key={n} variant={days === n ? "default" : "outline"} onClick={() => setDays(n)}>近 {n} 天</Button>)}
       </div>
+      <Card style={{ margin: "12px 0" }}>
+        <CardHeader><CardTitle>每日消费</CardTitle></CardHeader>
+        <CardContent><BarChart points={stats?.daily ?? []} valueOf={(x) => x.charged} format={usd} /></CardContent>
+      </Card>
       <div style={grid(2)}>
         <Card>
           <CardHeader><CardTitle>按模型</CardTitle></CardHeader>
