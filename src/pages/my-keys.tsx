@@ -4,7 +4,7 @@ import * as React from "react";
 import { apiFetch, apiWrite } from "@neton/application-client-runtime/client";
 import { formatDateTime } from "@neton/application-client-runtime/types";
 import {
-  Button, DataTable, Drawer, Field, Input, PageHeader, RowActions, StatusBadge,
+  Alert, Button, Checkbox, DataTable, Drawer, Field, Input, PageHeader, RowActions, StatusBadge,
   type DataColumn, type RowAction,
 } from "@neton/application-client-kit";
 
@@ -19,39 +19,110 @@ interface MyToken {
 interface IssuedToken { id: number; key: string; display: string }
 interface PublicInfo { apiBase?: string | null; endpoints: { path: string; protocol: string; capability: string }[] }
 
-/** 表单里预算用美元、有效期用日期；提交时换算成后端的 μUSD 与毫秒时间戳。 */
-interface TokenForm { name: string; budgetUsd: string; expiresOn: string; allowedModels: string; allowedIps: string }
-const EMPTY_FORM: TokenForm = { name: "", budgetUsd: "", expiresOn: "", allowedModels: "", allowedIps: "" };
+/** 有效期预设；编辑时多一个「保持不变」。天数按「从现在起」算，到期那天的 23:59:59 失效。 */
+const EXPIRY_PRESETS = [
+  { key: "7", label: "7 天", days: 7 },
+  { key: "30", label: "30 天", days: 30 },
+  { key: "180", label: "半年", days: 180 },
+  { key: "365", label: "1 年", days: 365 },
+  { key: "never", label: "永不过期", days: null },
+] as const;
+type ExpiryChoice = "keep" | (typeof EXPIRY_PRESETS)[number]["key"];
+
+/** 表单里预算用美元、有效期用预设、模型用勾选；提交时换算成后端的 μUSD、毫秒时间戳与逗号串。 */
+interface TokenForm {
+  name: string; budgetUsd: string; expiry: ExpiryChoice; keepExpiresAt: number | null;
+  modelMode: "all" | "specific"; models: string[]; allowedIps: string;
+}
+const EMPTY_FORM: TokenForm = { name: "", budgetUsd: "", expiry: "never", keepExpiresAt: null, modelMode: "all", models: [], allowedIps: "" };
 
 const usd = (micro: number) => `$${(micro / 1_000_000).toFixed(4)}`;
+const splitList = (v: string | null | undefined) => (v ?? "").split(",").map((x) => x.trim()).filter(Boolean);
 
 function toForm(t: MyToken): TokenForm {
   return {
     name: t.name,
     budgetUsd: t.quotaBudget != null ? String(t.quotaBudget / 1_000_000) : "",
-    expiresOn: t.expiresAt ? new Date(t.expiresAt).toISOString().slice(0, 10) : "",
-    allowedModels: t.allowedModels ?? "",
+    expiry: t.expiresAt ? "keep" : "never",
+    keepExpiresAt: t.expiresAt ?? null,
+    modelMode: splitList(t.allowedModels).length ? "specific" : "all",
+    models: splitList(t.allowedModels),
     allowedIps: t.allowedIps ?? "",
   };
 }
 
+function endOfDayAfter(days: number): number {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  d.setHours(23, 59, 59, 0);
+  return d.getTime();
+}
+
 /** 表单 → 请求体；返回错误文案或 null。 */
 function toBody(f: TokenForm): { body: Record<string, unknown>; error: string | null } {
-  const body: Record<string, unknown> = { name: f.name.trim(), allowedModels: f.allowedModels.trim(), allowedIps: f.allowedIps.trim() };
+  const allowedModels = f.modelMode === "all" ? "" : f.models.join(",");
+  const body: Record<string, unknown> = { name: f.name.trim(), allowedModels, allowedIps: f.allowedIps.trim() };
   if (!body.name) return { body, error: "请填写名称" };
+  if (f.modelMode === "specific" && f.models.length === 0) return { body, error: "请至少勾选一个模型，或选择「全部模型」" };
   if (f.budgetUsd.trim()) {
     const v = Number(f.budgetUsd);
     if (!Number.isFinite(v) || v <= 0) return { body, error: "预算必须是大于 0 的美元数" };
     body.quotaBudget = Math.round(v * 1_000_000);
   }
-  if (f.expiresOn.trim()) {
-    // 取当天 23:59:59（本地时区）：用户填「到 6 月 30 日」的意思是那天还能用
-    const t = new Date(`${f.expiresOn}T23:59:59`).getTime();
-    if (!Number.isFinite(t)) return { body, error: "有效期格式不对" };
-    if (t <= Date.now()) return { body, error: "有效期必须在今天之后" };
-    body.expiresAt = t;
+  // 后端更新是整体覆盖：不传 expiresAt 等于清掉有效期，所以「保持不变」要把原值带回去
+  if (f.expiry === "keep") {
+    if (f.keepExpiresAt != null && f.keepExpiresAt <= Date.now()) return { body, error: "这个 Key 已过期，请重新选择有效期" };
+    if (f.keepExpiresAt != null) body.expiresAt = f.keepExpiresAt;
+  } else {
+    const preset = EXPIRY_PRESETS.find((p) => p.key === f.expiry);
+    if (preset?.days != null) body.expiresAt = endOfDayAfter(preset.days);
   }
   return { body, error: null };
+}
+
+const chipClass = (on: boolean) =>
+  `rounded-md border px-3 py-1.5 text-xs font-medium transition ${on
+    ? "border-[var(--foreground)] bg-[var(--foreground)] text-[var(--background)]"
+    : "border-[var(--border)] text-[var(--foreground)] hover:bg-[var(--muted)]"}`;
+
+/**
+ * 模型范围：「全部模型」不限制；「指定模型」时勾选。目录里没有、但 Key 上已存的值（旧数据、
+ * 已下架的模型）照样列出来并保持勾选 —— 静默丢掉会让一次「只改名称」的保存悄悄放宽权限。
+ */
+function ModelPicker({ catalog, mode, onMode, value, onChange }: {
+  catalog: string[]; mode: "all" | "specific"; onMode: (m: "all" | "specific") => void; value: string[]; onChange: (v: string[]) => void;
+}) {
+  const [query, setQuery] = React.useState("");
+  const all = React.useMemo(() => [...new Set([...value.filter((m) => !catalog.includes(m)), ...catalog])], [catalog, value]);
+  const shown = all.filter((m) => m.toLowerCase().includes(query.trim().toLowerCase()));
+  const toggle = (m: string) => onChange(value.includes(m) ? value.filter((x) => x !== m) : [...value, m]);
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap gap-2">
+        <button type="button" className={chipClass(mode === "all")} onClick={() => onMode("all")}>全部模型（不限制）</button>
+        <button type="button" className={chipClass(mode === "specific")} onClick={() => onMode("specific")}>
+          指定模型{mode === "specific" && value.length ? `（已选 ${value.length}）` : ""}
+        </button>
+      </div>
+      {mode === "specific" ? (
+        <div className="rounded-lg border border-[var(--border)]">
+          <div className="border-b border-[var(--border)] p-2">
+            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="搜索模型" />
+          </div>
+          <div className="max-h-56 overflow-y-auto p-1">
+            {shown.length === 0 ? <div className="px-2 py-3 text-xs text-[var(--muted-foreground)]">没有匹配的模型</div> : null}
+            {shown.map((m) => (
+              <label key={m} className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-[var(--muted)]">
+                <Checkbox checked={value.includes(m)} onCheckedChange={() => toggle(m)} />
+                <span className="truncate">{m}</span>
+                {!catalog.includes(m) ? <span className="ml-auto text-[10px] text-[var(--muted-foreground)]">不在当前目录</span> : null}
+              </label>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 /**
@@ -62,7 +133,7 @@ function IntegrationCard({ info, sampleKey }: { info: PublicInfo | null; sampleK
   const base = info?.apiBase ?? "https://<网关地址>";
   const pre: React.CSSProperties = { fontSize: 12, margin: "4px 0 10px", padding: 10, borderRadius: 6, overflowX: "auto", background: "var(--muted, rgba(127,127,127,0.12))" };
   return (
-    <div style={{ margin: "12px 0", padding: 12, border: "1px solid var(--border, currentColor)", borderRadius: 8 }}>
+    <div style={{ padding: 12, border: "1px solid var(--border, currentColor)", borderRadius: 8 }}>
       <p style={{ margin: "0 0 6px", fontWeight: 600 }}>接入方式</p>
       {info && !info.apiBase ? (
         <p style={{ margin: "0 0 8px", fontSize: 12, color: "var(--muted-foreground)" }}>管理员尚未配置对外地址，请向管理员索取网关地址后替换下面的占位符。</p>
@@ -96,6 +167,9 @@ export default function Page() {
   const [busy, setBusy] = React.useState(false);
   const [issued, setIssued] = React.useState<IssuedToken | null>(null);
   const [info, setInfo] = React.useState<PublicInfo | null>(null);
+  const [catalog, setCatalog] = React.useState<string[]>([]);
+  const [formError, setFormError] = React.useState<string | null>(null);
+  const [advanced, setAdvanced] = React.useState(false);
 
   const load = React.useCallback(async () => {
     setLoading(true); setError(null);
@@ -108,14 +182,15 @@ export default function Page() {
   React.useEffect(() => {
     let alive = true;
     apiFetch<PublicInfo>("/app/gateway/public-info").then((i) => { if (alive) setInfo(i); }).catch(() => { /* 接入说明缺失不影响管理 Key */ });
+    apiFetch<{ model: string }[]>("/app/gateway/model/list").then((m) => { if (alive) setCatalog(m.map((x) => x.model)); }).catch(() => { /* 目录拉不到时只能「全部模型」 */ });
     return () => { alive = false; };
   }, []);
 
   async function submit() {
     if (!editing) return;
     const { body, error: e } = toBody(editing.form);
-    if (e) { setError(e); return; }
-    setError(null); setBusy(true);
+    if (e) { setFormError(e); return; }
+    setFormError(null); setBusy(true);
     try {
       if (editing.id == null) {
         setIssued(await apiWrite<IssuedToken>("/app/gateway/token/create", "POST", body));
@@ -123,7 +198,7 @@ export default function Page() {
         await apiWrite("/app/gateway/token/update", "PUT", { id: editing.id, ...body });
       }
       setEditing(null); void load();
-    } catch (cause) { setError((cause as Error).message); } finally { setBusy(false); }
+    } catch (cause) { setFormError((cause as Error).message); } finally { setBusy(false); }
   }
 
   async function setStatus(row: MyToken, status: number) {
@@ -144,12 +219,18 @@ export default function Page() {
   }
 
   const actions = (row: MyToken): RowAction[] => [
-    { label: "编辑", onClick: () => { setError(null); setEditing({ id: row.id, form: toForm(row) }); } },
+    { label: "编辑", onClick: () => openEditor(row.id, toForm(row)) },
     row.status === 1
       ? { label: "停用", onClick: () => void setStatus(row, 0) }
       : { label: "启用", onClick: () => void setStatus(row, 1) },
     { label: "删除", onClick: () => void remove(row) },
   ];
+
+  function openEditor(id: number | null, form: TokenForm) {
+    setFormError(null);
+    setAdvanced(Boolean(form.allowedIps.trim()));
+    setEditing({ id, form });
+  }
 
   const expired = (r: MyToken) => r.expiresAt != null && r.expiresAt < Date.now();
   const limits = (r: MyToken) => {
@@ -175,19 +256,19 @@ export default function Page() {
   const setF = (patch: Partial<TokenForm>) => setEditing((cur) => (cur ? { ...cur, form: { ...cur.form, ...patch } } : cur));
 
   return (
-    <div>
+    <div className="flex flex-col gap-4">
       <PageHeader
         eyebrow="API"
         title="我的 API Key"
         description="用这些 Key 调用网关。兼容 OpenAI、Anthropic、Gemini 三种客户端配置方式。"
       />
-      {error ? <p role="alert">{error}</p> : null}
-      <div style={{ margin: "12px 0" }}>
-        <Button onClick={() => { setError(null); setEditing({ id: null, form: EMPTY_FORM }); }}>创建 Key</Button>
+      {error ? <Alert tone="error">{error}</Alert> : null}
+      <div>
+        <Button onClick={() => openEditor(null, EMPTY_FORM)}>创建 Key</Button>
       </div>
 
       {issued ? (
-        <div style={{ margin: "12px 0", padding: 12, border: "1px solid currentColor", borderRadius: 8 }}>
+        <div style={{ padding: 12, border: "1px solid currentColor", borderRadius: 8 }}>
           <p><strong>请立即复制保存，这串明文不会再显示：</strong></p>
           <code style={{ wordBreak: "break-all" }}>{issued.key}</code>
           <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
@@ -201,25 +282,47 @@ export default function Page() {
 
       <IntegrationCard info={info} sampleKey={issued?.key ?? "sk-你的Key"} />
 
-      <Drawer open={editing !== null} onClose={() => setEditing(null)} title={editing?.id == null ? "创建 API Key" : "编辑 API Key"}>
-        <Field label="名称"><Input value={f.name} onChange={(e) => setF({ name: e.target.value })} placeholder="例如 生产环境 / 本地调试" /></Field>
-        <Field label="预算（美元，留空则不限，仍受账户余额约束）">
-          <Input value={f.budgetUsd} onChange={(e) => setF({ budgetUsd: e.target.value })} placeholder="例如 20" inputMode="decimal" />
-        </Field>
-        <Field label="有效期（留空则长期有效）">
-          <Input type="date" value={f.expiresOn} onChange={(e) => setF({ expiresOn: e.target.value })} />
-        </Field>
-        <Field label="允许的模型（逗号分隔，留空则全部）">
-          <Input value={f.allowedModels} onChange={(e) => setF({ allowedModels: e.target.value })} placeholder="gpt-4o,claude-sonnet-4" />
-        </Field>
-        <Field label="允许的来源 IP（逗号分隔，留空则不限）">
-          <Input value={f.allowedIps} onChange={(e) => setF({ allowedIps: e.target.value })} placeholder="1.2.3.4,10.0.0.0/8" />
-        </Field>
-        <p style={{ margin: "6px 0 0", fontSize: 12, color: "var(--muted-foreground)" }}>
-          RPM / TPM / 并发上限由平台设定，如需调整请联系管理员。
-        </p>
-        <div style={{ marginTop: 12 }}>
-          <Button onClick={() => void submit()} disabled={busy}>{busy ? "保存中…" : editing?.id == null ? "创建" : "保存"}</Button>
+      <Drawer
+        open={editing !== null}
+        onClose={() => setEditing(null)}
+        title={editing?.id == null ? "创建 API Key" : "编辑 API Key"}
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setEditing(null)}>取消</Button>
+            <Button onClick={() => void submit()} disabled={busy}>{busy ? "保存中…" : editing?.id == null ? "创建" : "保存"}</Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-4">
+          {formError ? <Alert tone="error">{formError}</Alert> : null}
+          <Field label="名称"><Input value={f.name} onChange={(e) => setF({ name: e.target.value })} placeholder="例如 生产环境 / 本地调试" autoFocus /></Field>
+          <Field label="有效期">
+            <div className="flex flex-wrap gap-2">
+              {editing?.id != null && f.keepExpiresAt != null ? (
+                <button type="button" className={chipClass(f.expiry === "keep")} onClick={() => setF({ expiry: "keep" })}>
+                  保持不变（到 {new Date(f.keepExpiresAt).toLocaleDateString()}）
+                </button>
+              ) : null}
+              {EXPIRY_PRESETS.map((p) => (
+                <button key={p.key} type="button" className={chipClass(f.expiry === p.key)} onClick={() => setF({ expiry: p.key })}>{p.label}</button>
+              ))}
+            </div>
+          </Field>
+          <Field label="可用模型"><ModelPicker catalog={catalog} mode={f.modelMode} onMode={(modelMode) => setF({ modelMode })} value={f.models} onChange={(models) => setF({ models })} /></Field>
+          <Field label="预算（美元，可选）">
+            <Input value={f.budgetUsd} onChange={(e) => setF({ budgetUsd: e.target.value })} placeholder="留空则不限，仍受账户余额约束" inputMode="decimal" />
+          </Field>
+          <div>
+            <button type="button" className="text-xs font-medium text-[var(--muted-foreground)] hover:text-[var(--foreground)]" onClick={() => setAdvanced((v) => !v)}>
+              {advanced ? "收起高级设置" : "高级设置（IP 白名单）"}
+            </button>
+          </div>
+          {advanced ? (
+            <Field label="允许的来源 IP（逗号分隔，留空则不限）">
+              <Input value={f.allowedIps} onChange={(e) => setF({ allowedIps: e.target.value })} placeholder="1.2.3.4,10.0.0.0/8" />
+            </Field>
+          ) : null}
+          <p className="text-xs text-[var(--muted-foreground)]">RPM / TPM / 并发上限由平台设定，如需调整请联系管理员。</p>
         </div>
       </Drawer>
     </div>
