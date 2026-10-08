@@ -184,7 +184,7 @@ function NavBranch({
           "relative flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-[13px] font-medium transition-colors hover:bg-[var(--sidebar-accent)] hover:text-[var(--sidebar-foreground)]",
           depth > 0 && "py-1.5",
           active
-              ? "bg-[var(--sidebar-accent)]/55 text-[var(--sidebar-foreground)]"
+              ? "bg-[var(--sidebar-accent)]/55 text-[var(--sidebar-foreground)] group-has-[a:hover]/nav:bg-transparent"
               : "text-[var(--muted-foreground)]",
           )}
         >
@@ -217,7 +217,7 @@ function NavBranch({
       className={cn(
         "group relative flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] transition-colors",
         pathname === item.path
-          ? "bg-[var(--sidebar-active)] font-medium text-[var(--foreground)] before:absolute before:-left-[9px] before:h-4 before:w-[2px] before:rounded-full before:bg-[var(--foreground)]"
+          ? "bg-[var(--sidebar-active)] font-medium text-[var(--foreground)] group-has-[a:hover]/nav:[&:not(:hover)]:bg-transparent before:absolute before:-left-[9px] before:h-4 before:w-[2px] before:rounded-full before:bg-[var(--foreground)]"
           : "text-[var(--muted-foreground)] hover:bg-[var(--sidebar-accent)] hover:text-[var(--sidebar-foreground)]",
       )}
     >
@@ -591,7 +591,7 @@ export function AppShell({
           </button>
         </div>
 
-        <nav className={cn("min-h-0 flex-1 overflow-y-auto py-4", sidebarCompact ? "space-y-1 px-2" : "px-2.5")}>
+        <nav className={cn("group/nav min-h-0 flex-1 overflow-y-auto py-4", sidebarCompact ? "space-y-1 px-2" : "px-2.5")}>
           <WorkspaceLink
             to="/"
             onClick={() => setMobileOpen(false)}
@@ -770,7 +770,7 @@ export function AppShell({
                炸掉整棵子树，比每次切换都重建更难发现。
           现在滚动容器下沉到每个实例内部（见 WorkspaceHost），所以这里不再 overflow-auto。
         */}
-        <main className="front-shell-main relative z-0 min-h-0 flex-1 overflow-hidden">
+        <main className="front-shell-main relative min-h-0 flex-1 overflow-hidden">
           <WorkspaceHost pages={pages} ui={ui} />
         </main>
       </div>

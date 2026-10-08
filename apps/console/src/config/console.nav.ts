@@ -20,5 +20,15 @@ export const consoleNav: NavItem[] = [
   { name: "用量与额度", path: "/gateway/usage", icon: "file-text" },
   { name: "充值与流水", path: "/payment/billing", icon: "pay-circle" },
   { name: "个人资料", path: "/member/profile", icon: "user" },
-  { name: "修改密码", path: "/member/password", icon: "lock" },
+];
+
+/**
+ * 二级页面：有入口、但不进侧栏 —— 从别的页面或右上角个人菜单点进去。
+ * harness S52 把这里与 consoleNav 一起当作「入口」：漏登记的页面仍然会被判成隐形页，
+ * 所以新增一个只从页面内跳转的页面时，要在这里写明它从哪进。
+ */
+export const consoleSubPages: Array<{ path: string; from: string }> = [
+  { path: "/member/password", from: "右上角个人菜单「修改密码」、个人资料 → 登录密码" },
+  { path: "/member/email", from: "个人资料 → 邮箱「绑定 / 修改」" },
+  { path: "/member/mobile", from: "个人资料 → 手机号「绑定 / 修改」" },
 ];
