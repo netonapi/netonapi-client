@@ -20,4 +20,5 @@ export const consoleNav: NavItem[] = [
   { name: "用量与额度", path: "/gateway/usage", icon: "file-text" },
   { name: "充值与流水", path: "/payment/billing", icon: "pay-circle" },
   { name: "个人资料", path: "/member/profile", icon: "user" },
+  { name: "修改密码", path: "/member/password", icon: "lock" },
 ];
