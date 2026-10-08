@@ -1,4 +1,4 @@
-# NanoGate 用户控制台镜像。构建约定与管理台镜像完全相同（父目录上下文、复刻布局、只 COPY 显式子路径），
+# NetonAPI 用户控制台镜像。构建约定与管理台镜像完全相同（父目录上下文、复刻布局、只 COPY 显式子路径），
 # 说明见 newgate-front/Dockerfile 头部注释。
 #   docker build -f NewGate/newgate-client/Dockerfile -t nanogate-console:latest .
 FROM node:24-alpine

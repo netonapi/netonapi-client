@@ -1,6 +1,6 @@
-# NanoGate 用户控制台
+# NetonAPI 用户控制台
 
-NanoGate 自助侧前端（仓名 `nanogate-client`）：用户在这里领 API Key、看用量与账单、
+NetonAPI 自助侧前端（仓名 `nanogate-client`）：用户在这里领 API Key、看用量与账单、
 用兑换码入账，并查看模型定价。React 19 + Next.js App Router（SSR），pnpm workspace，BFF 代理模式。
 与管理台 [`nanogate-admin`](https://github.com/zoujiaqing/nanogate-admin) 同构、同维护模式，
 面向的是会员而不是运营人员。
@@ -52,7 +52,7 @@ NanoGate 自助侧前端（仓名 `nanogate-client`）：用户在这里领 API 
 ```
 @neton/application-client-member    # 通用：账号
 @neton/application-client-payment   # 通用：充值与账单
-@neton/application-client-gateway   # 产品：NanoGate 的 API 网关自助面
+@neton/application-client-gateway   # 产品：NetonAPI 的 API 网关自助面
 ```
 
 三个模块都以 `file:../../../../Neton/neton-application-client-*` 引入，所以本仓必须正好落在
@@ -68,7 +68,7 @@ projects/
 ```
 
 > ⚠️ **现在从干净 clone 出发装不起来。** `neton-application-client-gateway` 目前是私有仓
-> （`-member`、`-payment` 是公开的），而它正是 NanoGate 自助面的页面所在。没有它的读权限，
+> （`-member`、`-payment` 是公开的），而它正是 NetonAPI 自助面的页面所在。没有它的读权限，
 > `pnpm install` 会在解析 `file:` 依赖时失败。在它转公开之前，公开本仓只意味着「源码可读」，
 > 不意味着「人人可自建」。
 
