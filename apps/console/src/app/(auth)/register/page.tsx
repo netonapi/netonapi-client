@@ -4,8 +4,10 @@ import * as React from "react";
 import { ArrowRight, Check, Eye, EyeOff, KeyRound, Moon, Sparkles, Sun, UserPlus } from "lucide-react";
 import { Alert, Button, Input, Label } from "@neton/application-client-kit";
 import { BrandMark } from "@/components/brand-mark";
+import { useSiteBrand } from "@/components/site-brand";
 
 export default function RegisterPage() {
+  const brand = useSiteBrand();
   const [username, setUsername] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [confirm, setConfirm] = React.useState("");
@@ -69,8 +71,10 @@ export default function RegisterPage() {
         <div className="flex items-center gap-3">
           <BrandMark className="h-10 w-10" />
           <div>
-            <div className="text-sm font-semibold tracking-[-0.01em]">NanoGate</div>
-            <div className="mt-0.5 text-[10px] font-medium tracking-[0.18em] text-[var(--muted-foreground)]">API GATEWAY</div>
+            <div className="text-sm font-semibold tracking-[-0.01em]">{brand.name}</div>
+            {brand.tagline && (
+              <div className="mt-0.5 text-[10px] font-medium tracking-[0.18em] text-[var(--muted-foreground)]">{brand.tagline}</div>
+            )}
           </div>
         </div>
         <button type="button" onClick={toggleTheme} aria-label={darkMode ? "切换到亮色模式" : "切换到暗色模式"} className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--card)] text-[var(--muted-foreground)] shadow-sm transition hover:text-[var(--foreground)]">
@@ -114,7 +118,7 @@ export default function RegisterPage() {
               <div className="mb-8">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--muted)] text-[var(--primary)]"><UserPlus size={18} /></div>
                 <p className="mt-6 text-[10px] font-semibold tracking-[0.17em] text-[var(--primary)]">CREATE ACCOUNT</p>
-                <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em]">注册 NanoGate</h2>
+                <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em]">注册 {brand.name}</h2>
                 <p className="mt-2 text-xs leading-6 text-[var(--muted-foreground)]">填写账号信息，注册成功后会直接进入控制台。</p>
               </div>
               <form className="space-y-4" onSubmit={submit}>
@@ -160,8 +164,8 @@ export default function RegisterPage() {
       </section>
 
       <footer className="relative z-10 mx-auto flex h-[52px] w-full max-w-[1280px] items-center justify-between px-5 text-[10px] text-[var(--muted-foreground)] sm:px-8">
-        <span>© 2026 NanoGate</span>
-        <span className="tracking-[0.08em]">API GATEWAY</span>
+        <span>© {new Date().getFullYear()} {brand.name}</span>
+        <span className="tracking-[0.08em]">{brand.tagline}</span>
       </footer>
     </main>
   );

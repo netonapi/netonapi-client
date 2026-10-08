@@ -3,9 +3,11 @@
 import * as React from "react";
 import { Alert, Button, Input, Label } from "@neton/application-client-kit";
 import { BrandMark } from "@/components/brand-mark";
+import { useSiteBrand } from "@/components/site-brand";
 
 /** 找回密码：邮箱 → 验证码 → 新密码。只对绑定过邮箱的账号有效；后端对未知邮箱也返回成功，不泄露账号存在与否。 */
 export default function ForgotPasswordPage() {
+  const brand = useSiteBrand();
   const [email, setEmail] = React.useState("");
   const [code, setCode] = React.useState("");
   const [password, setPassword] = React.useState("");
@@ -48,8 +50,10 @@ export default function ForgotPasswordPage() {
         <div className="flex items-center gap-3">
           <BrandMark className="h-10 w-10" />
           <div>
-            <div className="text-sm font-semibold tracking-[-0.01em]">NanoGate</div>
-            <div className="mt-0.5 text-[10px] font-medium tracking-[0.18em] text-[var(--muted-foreground)]">API GATEWAY</div>
+            <div className="text-sm font-semibold tracking-[-0.01em]">{brand.name}</div>
+            {brand.tagline && (
+              <div className="mt-0.5 text-[10px] font-medium tracking-[0.18em] text-[var(--muted-foreground)]">{brand.tagline}</div>
+            )}
           </div>
         </div>
       </header>

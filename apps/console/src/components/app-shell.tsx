@@ -60,6 +60,7 @@ import type { PermissionInfo } from "@neton/application-client-runtime/types";
 import { FrontClientProvider, useQueryClient } from "@neton/application-client-runtime/client-context";
 import { cn } from "@neton/application-client-kit";
 import { BrandMark } from "./brand-mark";
+import { useSiteBrand } from "./site-brand";
 
 type FrontUser = PermissionInfo["user"];
 
@@ -474,6 +475,7 @@ export function AppShell({
   useWorkspaceLinkDelegation(pages);
   const current = flatItems.find((item) => item.path === pathname)
     ?? [...flatItems].sort((a, b) => b.path.length - a.path.length).find((item) => pathname.startsWith(`${item.path}/`));
+  const brand = useSiteBrand();
   const [collapsed, setCollapsed] = React.useState(false);
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [searchOpen, setSearchOpen] = React.useState(false);
@@ -558,8 +560,10 @@ export function AppShell({
           <BrandMark className="h-8 w-8" />
           {!sidebarCompact && (
             <div className="min-w-0">
-              <div className="truncate text-sm font-semibold tracking-[-0.02em]">Neton</div>
-              <div className="mt-0.5 text-[10px] font-medium tracking-[0.14em] text-[var(--muted-foreground)]">CONTROL PLANE</div>
+              <div className="truncate text-sm font-semibold tracking-[-0.02em]">{brand.name}</div>
+              {brand.tagline && (
+                <div className="mt-0.5 truncate text-[10px] font-medium tracking-[0.14em] text-[var(--muted-foreground)]">{brand.tagline}</div>
+              )}
             </div>
           )}
           <button

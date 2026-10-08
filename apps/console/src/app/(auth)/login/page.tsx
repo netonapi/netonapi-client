@@ -4,8 +4,10 @@ import * as React from "react";
 import { ArrowRight, Check, Eye, EyeOff, Fingerprint, KeyRound, Moon, ShieldCheck, Sun } from "lucide-react";
 import { Alert, Button, Input, Label } from "@neton/application-client-kit";
 import { BrandMark } from "@/components/brand-mark";
+import { useSiteBrand } from "@/components/site-brand";
 
 export default function LoginPage() {
+  const brand = useSiteBrand();
   const [username, setUsername] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [passwordVisible, setPasswordVisible] = React.useState(false);
@@ -57,8 +59,10 @@ export default function LoginPage() {
         <div className="flex items-center gap-3">
           <BrandMark className="h-10 w-10" />
           <div>
-            <div className="text-sm font-semibold tracking-[-0.01em]">NanoGate</div>
-            <div className="mt-0.5 text-[10px] font-medium tracking-[0.18em] text-[var(--muted-foreground)]">API GATEWAY</div>
+            <div className="text-sm font-semibold tracking-[-0.01em]">{brand.name}</div>
+            {brand.tagline && (
+              <div className="mt-0.5 text-[10px] font-medium tracking-[0.18em] text-[var(--muted-foreground)]">{brand.tagline}</div>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -111,7 +115,7 @@ export default function LoginPage() {
               <div className="mb-8">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--muted)] text-[var(--primary)]"><KeyRound size={18} /></div>
                 <p className="mt-6 text-[10px] font-semibold tracking-[0.17em] text-[var(--primary)]">SIGN IN</p>
-                <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em]">登录 NanoGate</h2>
+                <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em]">登录 {brand.name}</h2>
                 <p className="mt-2 text-xs leading-6 text-[var(--muted-foreground)]">使用你的账号进入控制台，管理 API Key、查看用量与充值。</p>
               </div>
 
@@ -147,8 +151,8 @@ export default function LoginPage() {
       </section>
 
       <footer className="relative z-10 mx-auto flex h-[52px] w-full max-w-[1280px] items-center justify-between px-5 text-[10px] text-[var(--muted-foreground)] sm:px-8">
-        <span>© 2026 NanoGate</span>
-        <span className="tracking-[0.08em]">API GATEWAY</span>
+        <span>© {new Date().getFullYear()} {brand.name}</span>
+        <span className="tracking-[0.08em]">{brand.tagline}</span>
       </footer>
     </main>
   );
