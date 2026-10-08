@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { apiFetch } from "@neton/application-client-runtime/client";
+import { useQuery } from "@neton/application-client-runtime/client-context";
 import { DataTable, PageHeader, type DataColumn } from "@neton/application-client-kit";
 
 interface PublicModel {
@@ -16,18 +17,11 @@ const CAP_LABEL: Record<string, string> = { chat: "对话", embeddings: "向量"
 
 /** 模型广场。未登录也能看——这是拉新入口，只暴露模型名与价格。 */
 export default function Page() {
-  const [rows, setRows] = React.useState<PublicModel[]>([]);
-  const [loading, setLoading] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    void (async () => {
-      setLoading(true); setError(null);
-      try {
-        setRows(await apiFetch<PublicModel[]>("/app/gateway/model/list"));
-      } catch (cause) { setError((cause as Error).message); } finally { setLoading(false); }
-    })();
-  }, []);
+  // useQuery 而不是 effect 里取数：工作区切回页签会重挂 effect，那样每次切换都整页重拉、表格先清空
+  const query = useQuery({ queryKey: ["gateway-models"], queryFn: () => apiFetch<PublicModel[]>("/app/gateway/model/list") });
+  const rows = query.data ?? [];
+  const loading = query.isLoading;
+  const error = query.error ? (query.error as Error).message : null;
 
   const columns: DataColumn<PublicModel>[] = [
     { key: "model", header: "模型", cell: (r) => r.model },

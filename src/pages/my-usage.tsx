@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { apiFetch } from "@neton/application-client-runtime/client";
+import { useQuery } from "@neton/application-client-runtime/client-context";
 import { formatDateTime } from "@neton/application-client-runtime/types";
 import {
   Button, Card, CardContent, CardHeader, CardTitle,
@@ -50,36 +51,32 @@ function BarChart({ points, valueOf, format }: { points: Stats["daily"]; valueOf
 }
 
 export default function Page() {
-  const [balance, setBalance] = React.useState<Balance | null>(null);
-  const [stats, setStats] = React.useState<Stats | null>(null);
   const [days, setDays] = React.useState(7);
-  const [rows, setRows] = React.useState<UsageLog[]>([]);
-  const [total, setTotal] = React.useState(0);
   const [page, setPage] = React.useState(1);
   const [model, setModel] = React.useState("");
   const [modelInput, setModelInput] = React.useState("");
-  const [loading, setLoading] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
   const size = 20;
 
-  const load = React.useCallback(async () => {
-    setLoading(true); setError(null);
-    try {
-      const q = model ? `&requestModel=${encodeURIComponent(model)}` : "";
-      const [b, p] = await Promise.all([
-        apiFetch<Balance>("/app/gateway/usage/balance"),
-        apiFetch<PageResp<UsageLog>>(`/app/gateway/usage/log/page?pageNo=${page}&pageSize=${size}${q}`),
-      ]);
-      setBalance(b); setRows(p.list); setTotal(p.total);
-    } catch (cause) { setError((cause as Error).message); } finally { setLoading(false); }
-  }, [page, model]);
-
-  React.useEffect(() => { void load(); }, [load]);
-  React.useEffect(() => {
-    let alive = true;
-    apiFetch<Stats>(`/app/gateway/usage/stats?days=${days}`).then((s) => { if (alive) setStats(s); }).catch((cause) => { if (alive) setError((cause as Error).message); });
-    return () => { alive = false; };
-  }, [days]);
+  // useQuery 而不是 effect 里取数：工作区切回页签会重挂 effect，那样每次切换都整页重拉、表格先清空。
+  // 翻页 / 筛选时 placeholderData 保留上一页，不闪空表。
+  const balanceQ = useQuery({ queryKey: ["gateway-balance"], queryFn: () => apiFetch<Balance>("/app/gateway/usage/balance") });
+  const logsQ = useQuery({
+    queryKey: ["gateway-usage-logs", page, model],
+    queryFn: () => apiFetch<PageResp<UsageLog>>(`/app/gateway/usage/log/page?pageNo=${page}&pageSize=${size}${model ? `&requestModel=${encodeURIComponent(model)}` : ""}`),
+    placeholderData: (prev) => prev,
+  });
+  const statsQ = useQuery({
+    queryKey: ["gateway-usage-stats", days],
+    queryFn: () => apiFetch<Stats>(`/app/gateway/usage/stats?days=${days}`),
+    placeholderData: (prev) => prev,
+  });
+  const balance = balanceQ.data ?? null;
+  const stats = statsQ.data ?? null;
+  const rows = logsQ.data?.list ?? [];
+  const total = logsQ.data?.total ?? 0;
+  const loading = logsQ.isLoading || balanceQ.isLoading;
+  const firstError = balanceQ.error ?? logsQ.error ?? statsQ.error;
+  const error = firstError ? (firstError as Error).message : null;
 
   const columns: DataColumn<UsageLog>[] = [
     { key: "createdAt", header: "时间", cell: (r) => formatDateTime(r.createdAt) },

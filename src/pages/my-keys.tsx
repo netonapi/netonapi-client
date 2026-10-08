@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { apiFetch, apiWrite } from "@neton/application-client-runtime/client";
+import { useQuery, useQueryClient } from "@neton/application-client-runtime/client-context";
 import { formatDateTime } from "@neton/application-client-runtime/types";
 import {
   Alert, Button, Checkbox, DataTable, Drawer, Field, Input, PageHeader, RowActions, StatusBadge,
@@ -160,31 +161,25 @@ client = Anthropic(base_url="${base}", api_key="${sampleKey}")`}</pre>
 
 /** 我的 API Key。明文只在创建后展示一次——服务端只存哈希，之后谁也取不回。 */
 export default function Page() {
-  const [rows, setRows] = React.useState<MyToken[]>([]);
-  const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [editing, setEditing] = React.useState<{ id: number | null; form: TokenForm } | null>(null);
   const [busy, setBusy] = React.useState(false);
   const [issued, setIssued] = React.useState<IssuedToken | null>(null);
-  const [info, setInfo] = React.useState<PublicInfo | null>(null);
-  const [catalog, setCatalog] = React.useState<string[]>([]);
   const [formError, setFormError] = React.useState<string | null>(null);
   const [advanced, setAdvanced] = React.useState(false);
 
-  const load = React.useCallback(async () => {
-    setLoading(true); setError(null);
-    try {
-      setRows(await apiFetch<MyToken[]>("/app/gateway/token/list"));
-    } catch (cause) { setError((cause as Error).message); } finally { setLoading(false); }
-  }, []);
-
-  React.useEffect(() => { void load(); }, [load]);
-  React.useEffect(() => {
-    let alive = true;
-    apiFetch<PublicInfo>("/app/gateway/public-info").then((i) => { if (alive) setInfo(i); }).catch(() => { /* 接入说明缺失不影响管理 Key */ });
-    apiFetch<{ model: string }[]>("/app/gateway/model/list").then((m) => { if (alive) setCatalog(m.map((x) => x.model)); }).catch(() => { /* 目录拉不到时只能「全部模型」 */ });
-    return () => { alive = false; };
-  }, []);
+  // useQuery 而不是 effect 里取数：工作区切回页签会重挂 effect，那样每次切换都整页重拉、表格先清空
+  const client = useQueryClient();
+  const tokensQ = useQuery({ queryKey: ["gateway-my-tokens"], queryFn: () => apiFetch<MyToken[]>("/app/gateway/token/list") });
+  // 接入说明与模型目录拉不到不影响管理 Key：前者显示占位符，后者只能选「全部模型」
+  const infoQ = useQuery({ queryKey: ["gateway-public-info"], queryFn: () => apiFetch<PublicInfo>("/app/gateway/public-info") });
+  const catalogQ = useQuery({ queryKey: ["gateway-models"], queryFn: () => apiFetch<{ model: string }[]>("/app/gateway/model/list") });
+  const rows = tokensQ.data ?? [];
+  const loading = tokensQ.isLoading;
+  const info = infoQ.data ?? null;
+  const catalog = React.useMemo(() => (catalogQ.data ?? []).map((x) => x.model), [catalogQ.data]);
+  const listError = tokensQ.error ? (tokensQ.error as Error).message : null;
+  const load = () => client.invalidateQueries({ queryKey: ["gateway-my-tokens"] });
 
   async function submit() {
     if (!editing) return;
@@ -262,7 +257,7 @@ export default function Page() {
         title="我的 API Key"
         description="用这些 Key 调用网关。兼容 OpenAI、Anthropic、Gemini 三种客户端配置方式。"
       />
-      {error ? <Alert tone="error">{error}</Alert> : null}
+      {error ?? listError ? <Alert tone="error">{error ?? listError}</Alert> : null}
       <div>
         <Button onClick={() => openEditor(null, EMPTY_FORM)}>创建 Key</Button>
       </div>
