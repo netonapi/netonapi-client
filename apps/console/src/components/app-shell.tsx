@@ -60,6 +60,7 @@ import type { NavItem } from "@neton/application-client-runtime/menu";
 import type { PermissionInfo } from "@neton/application-client-runtime/types";
 import { FrontClientProvider, useQueryClient } from "@neton/application-client-runtime/client-context";
 import { cn } from "@neton/application-client-kit";
+import { memberInitial } from "@neton/application-client-runtime/types";
 import { BrandMark } from "./brand-mark";
 import { useSiteBrand } from "./site-brand";
 
@@ -551,7 +552,8 @@ export function AppShell({
     });
   }
 
-  const initials = (user.nickname || user.username || "N").slice(0, 1).toUpperCase();
+  // 展示名可能是打码手机号（短信注册没有昵称），取不到字母 / 汉字就显示用户图标
+  const initials = memberInitial(user) || <UserRound size={15} />;
   const activeInstance = instances.find((i) => i.instanceId === activeId);
   const activeTitle = activeInstance ? instanceTitle(activeInstance) : "页面";
   const trails = current?.trail
@@ -732,7 +734,7 @@ export function AppShell({
                 <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--foreground)] text-xs font-semibold text-[var(--background)] shadow-[var(--shadow-xs)]">{initials}</span>
                 <span className="hidden min-w-0 text-left md:block">
                   <span className="block max-w-28 truncate text-xs font-semibold text-[var(--foreground)]">{user.nickname || user.username}</span>
-                  <span className="block max-w-28 truncate text-[9px] uppercase tracking-[0.1em] text-[var(--muted-foreground)]">{roles[0] || "operator"}</span>
+                  <span className="block max-w-28 truncate text-[9px] uppercase tracking-[0.1em] text-[var(--muted-foreground)]">{roles[0] || "会员"}</span>
                 </span>
                 <ChevronDown size={13} className="hidden text-[var(--muted-foreground)] md:block" />
               </button>
@@ -740,8 +742,8 @@ export function AppShell({
                 <div className="absolute right-0 top-12 z-[80] w-72 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--popover)] text-[var(--popover-foreground)] shadow-[var(--shadow-md)]">
                   <div className="flex items-center gap-3 p-4">
                     <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-[var(--foreground)] text-sm font-semibold text-[var(--background)]">{initials}</span>
-                    <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold text-[var(--foreground)]">{user.nickname || user.username}</span><span className="mt-0.5 block truncate text-xs text-[var(--muted-foreground)]">@{user.username}</span></span>
-                    <span className="rounded-md bg-[var(--primary-soft)] px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.08em] text-[var(--primary)]">{roles[0] || "operator"}</span>
+                    <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold text-[var(--foreground)]">{user.nickname || user.username}</span>{user.username ? <span className="mt-0.5 block truncate text-xs text-[var(--muted-foreground)]">@{user.username}</span> : null}</span>
+                    <span className="rounded-md bg-[var(--primary-soft)] px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.08em] text-[var(--primary)]">{roles[0] || "会员"}</span>
                   </div>
                   <div className="mx-3 flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--muted)] px-3 py-2.5">
                     <ShieldCheck size={15} className="text-[var(--primary)]" />

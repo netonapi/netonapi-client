@@ -36,12 +36,13 @@ const HOME_PAGE: WorkspacePage = {
  * 工作区根。
  *
  * 与 admin 线共用同一个工作区运行时；差别只在会话来源：C 端没有后端菜单与 RBAC，
- * 页签标题只能取自 manifest（`title` / 路径末段），导航是产品自己的静态
+ * 页签标题取侧栏名（consoleNav），其次 manifest 的 `title`，最后才是路径末段；导航是产品自己的静态
  * [consoleNav]。
  */
 export function WorkspaceRoot({ user }: { user: SessionUser }) {
   const pages = React.useMemo(
-    () => [HOME_PAGE, ...buildWorkspacePages(installedModules, pageRegistry)],
+    // 侧栏名就是页签标题（与管理台用菜单名同理）；不传则退回路径末段，页签上会出现 key / usage 这种英文
+    () => [HOME_PAGE, ...buildWorkspacePages(installedModules, pageRegistry, Object.fromEntries(consoleNav.map((item) => [item.path, item.name])))],
     [],
   );
 

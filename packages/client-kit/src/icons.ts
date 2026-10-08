@@ -23,5 +23,6 @@ export {
   Trash2 as DeleteIcon,
   Upload as UploadIcon,
   UserRoundCog as AssignIcon,
+  UserRound as UserIcon,
   X as CloseIcon,
 } from "lucide-react";

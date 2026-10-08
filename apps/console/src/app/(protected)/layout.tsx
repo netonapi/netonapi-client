@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getMemberProfile, SESSION_COOKIE } from "@neton/application-client-runtime/server";
+import { memberDisplayName } from "@neton/application-client-runtime/types";
 import { WorkspaceRoot } from "@/components/workspace-root";
 
 /**
@@ -26,7 +27,7 @@ export default async function ProtectedLayout() {
       user={{
         userId: String(member.id),
         username: member.username ?? "",
-        nickname: member.nickname ?? member.username ?? `用户${member.id}`,
+        nickname: memberDisplayName(member),
         avatar: member.avatar ?? "",
         homePath: "/gateway/usage",
       }}

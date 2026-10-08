@@ -87,5 +87,38 @@ export interface MemberProfile {
   username?: string | null;
   nickname?: string | null;
   avatar?: string | null;
+  mobile?: string | null;
   [key: string]: unknown;
+}
+
+/**
+ * E.164 区号（含 +）。号码本身不带分隔，单靠正则分不出区号与号码 ——
+ * `^\+\d{1,3}` 会把 +8613… 切成 +861 / 3…，所以按已知区号做最长前缀匹配。
+ */
+const CALLING_CODES = ["+1", "+7", "+20", "+33", "+44", "+49", "+60", "+61", "+62", "+63", "+65", "+66", "+81", "+82", "+84", "+86", "+91", "+852", "+853", "+886", "+971"];
+
+/** +8613812345678 → +86 138****5678；认不出区号时整串打码中间段。 */
+export function maskMobile(mobile: string): string {
+  const cc = CALLING_CODES.filter((c) => mobile.startsWith(c)).sort((a, b) => b.length - a.length)[0] ?? "";
+  const rest = mobile.slice(cc.length);
+  if (rest.length < 7) return mobile;
+  return `${cc ? `${cc} ` : ""}${rest.slice(0, 3)}****${rest.slice(-4)}`;
+}
+
+/** alice@example.com → al***@example.com */
+export function maskEmail(email: string): string {
+  const at = email.indexOf("@");
+  if (at <= 0) return email;
+  return `${email.slice(0, Math.min(2, at))}***${email.slice(at)}`;
+}
+
+/** 展示名：昵称 → 用户名 → 打码手机号 → 用户#id。短信注册的账号前两项都是空串，不是 null。 */
+export function memberDisplayName(m: { id: number; nickname?: string | null; username?: string | null; mobile?: string | null }): string {
+  return m.nickname || m.username || (m.mobile ? maskMobile(m.mobile) : "") || `用户${m.id}`;
+}
+
+/** 头像字：昵称 / 用户名里的第一个字母或汉字。都没有返回空串，由调用方换成图标 —— 别拿打码手机号的「+」充数。 */
+export function memberInitial(m: { nickname?: string | null; username?: string | null }): string {
+  const ch = `${m.nickname ?? ""}${m.username ?? ""}`.match(/\p{L}/u)?.[0] ?? "";
+  return ch.toUpperCase();
 }
