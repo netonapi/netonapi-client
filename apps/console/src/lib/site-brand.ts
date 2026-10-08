@@ -6,7 +6,7 @@ export type SiteBrand = { name: string; tagline: string };
 export const DEFAULT_SITE_BRAND: SiteBrand = { name: "Neton", tagline: "" };
 
 /**
- * 站点品牌来自后台「配置管理」的 site.name / site.tagline（匿名接口）。
+ * 站点品牌来自后台「配置管理」的 system.site.name / system.site.tagline（匿名接口）。
  * 缓存 30 秒：后台改名后半分钟内生效，又不会每次渲染都打一次后端。
  */
 export async function getSiteBrand(): Promise<SiteBrand> {
