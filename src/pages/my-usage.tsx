@@ -103,11 +103,11 @@ export default function Page() {
     { key: "charged", header: "费用", cell: (r) => usd(r.charged) },
   ];
 
-  const grid = (n: number): React.CSSProperties => ({ display: "grid", gridTemplateColumns: `repeat(${n}, minmax(0,1fr))`, gap: 12, margin: "12px 0" });
+  const grid = (n: number): React.CSSProperties => ({ display: "grid", gridTemplateColumns: `repeat(${n}, minmax(0,1fr))`, gap: 12 });
   const hint: React.CSSProperties = { fontSize: 12, color: "var(--muted-foreground)", marginTop: 4 };
 
   return (
-    <div>
+    <div className="flex flex-col gap-4">
       <PageHeader eyebrow="USAGE" title="用量与额度" description="你的余额、消费汇总与逐次调用明细。汇总按 UTC 日切。" />
       {error ? <p role="alert">{error}</p> : null}
 
@@ -132,10 +132,10 @@ export default function Page() {
         </Card>
       </div>
 
-      <div style={{ display: "flex", gap: 6, margin: "12px 0" }}>
+      <div style={{ display: "flex", gap: 6 }}>
         {[7, 30, 90].map((n) => <Button key={n} variant={days === n ? "default" : "outline"} onClick={() => setDays(n)}>近 {n} 天</Button>)}
       </div>
-      <Card style={{ margin: "12px 0" }}>
+      <Card>
         <CardHeader><CardTitle>每日消费</CardTitle></CardHeader>
         <CardContent><BarChart points={stats?.daily ?? []} valueOf={(x) => x.charged} format={usd} /></CardContent>
       </Card>
@@ -150,7 +150,7 @@ export default function Page() {
         </Card>
       </div>
 
-      <Card style={{ margin: "12px 0" }}>
+      <Card>
         <CardHeader><CardTitle>调用明细</CardTitle></CardHeader>
         <CardContent>
           <div style={{ display: "flex", gap: 8, alignItems: "flex-end", marginBottom: 8 }}>

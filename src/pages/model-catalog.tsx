@@ -52,7 +52,7 @@ export default function Page() {
   ];
 
   return (
-    <div>
+    <div className="flex flex-col gap-4">
       <PageHeader
         eyebrow="MODELS"
         title="模型与价格"
