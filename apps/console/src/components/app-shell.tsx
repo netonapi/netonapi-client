@@ -486,6 +486,11 @@ export function AppShell({
   const [noticeOpen, setNoticeOpen] = React.useState(false);
   const noticeRef = React.useRef<HTMLDivElement>(null);
   const profileRef = React.useRef<HTMLDivElement>(null);
+  // 个人中心入口只在对应页面已装配时出现：发行版可以不装 client-member，菜单不能指向不存在的页面
+  const accountLinks = [
+    { to: "/member/profile", label: "个人资料", Icon: UserRound },
+    { to: "/member/password", label: "修改密码", Icon: KeyRound },
+  ].filter((link) => pages.some((page) => page.path === link.to));
   // 点弹层外任意处关闭（按下时判定：等到 click 才关，拖选文字松手在外面也会误关）
   React.useEffect(() => {
     if (!profileOpen && !noticeOpen) return;
@@ -749,11 +754,14 @@ export function AppShell({
                     <ShieldCheck size={15} className="text-[var(--primary)]" />
                     <span><span className="block text-[11px] font-medium text-[var(--foreground)]">安全会话已验证</span><span className="block text-[10px] text-[var(--muted-foreground)]">HttpOnly · Backend verified</span></span>
                   </div>
-                  <div className="mt-3 border-t border-[var(--border)] p-2">
-                    <WorkspaceLink to="/member/profile" onClick={() => setProfileOpen(false)} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-xs font-medium text-[var(--foreground)] transition hover:bg-[var(--muted)]"><UserRound size={15} />个人资料</WorkspaceLink>
-                    <WorkspaceLink to="/member/password" onClick={() => setProfileOpen(false)} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-xs font-medium text-[var(--foreground)] transition hover:bg-[var(--muted)]"><KeyRound size={15} />修改密码</WorkspaceLink>
-                  </div>
-                  <div className="border-t border-[var(--border)] p-2">
+                  {accountLinks.length > 0 && (
+                    <div className="mt-3 border-t border-[var(--border)] p-2">
+                      {accountLinks.map(({ to, label, Icon }) => (
+                        <WorkspaceLink key={to} to={to} onClick={() => setProfileOpen(false)} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-xs font-medium text-[var(--foreground)] transition hover:bg-[var(--muted)]"><Icon size={15} />{label}</WorkspaceLink>
+                      ))}
+                    </div>
+                  )}
+                  <div className={cn("border-t border-[var(--border)] p-2", accountLinks.length === 0 && "mt-3")}>
                     <button type="button" onClick={logout} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-xs font-medium text-red-600 transition hover:bg-red-500/10"><LogOut size={15} />退出当前会话</button>
                   </div>
                 </div>

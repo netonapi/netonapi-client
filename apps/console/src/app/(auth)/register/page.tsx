@@ -108,7 +108,7 @@ export default function RegisterPage() {
               ))}
             </div>
             <div className="relative mt-auto flex items-center justify-between pt-8 text-[10px] font-medium tracking-[0.1em] text-[var(--muted-foreground)]">
-              <span>NANOGATE CONSOLE</span>
+              <span>{brand.name.toUpperCase()} CONSOLE</span>
               <span>SECURE / METERED</span>
             </div>
           </section>
