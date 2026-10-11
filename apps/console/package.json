@@ -11,20 +11,20 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@neton/application-client-account": "file:../../../../Neton/neton-application-client-account",
     "@neton/application-client-contract": "workspace:*",
     "@neton/application-client-gateway": "file:../../../../Neton/neton-application-client-gateway",
     "@neton/application-client-kit": "workspace:*",
-    "@neton/application-client-account": "file:../../../../Neton/neton-application-client-account",
     "@neton/application-client-member": "file:../../../../Neton/neton-application-client-member",
     "@neton/application-client-payment": "file:../../../../Neton/neton-application-client-payment",
     "@neton/application-client-resource": "workspace:*",
     "@neton/application-client-runtime": "workspace:*",
+    "@neton/application-front-workspace": "file:../../../../Neton/neton-application-front/packages/front-workspace",
     "@tanstack/react-query": "^5.0.0",
     "lucide-react": "^1.24.0",
-    "next": "^16.0.0",
+    "next": "^16.4.0",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "@neton/application-front-workspace": "file:../../../../Neton/neton-application-front/packages/front-workspace"
+    "react-dom": "^19.2.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.0.0",
