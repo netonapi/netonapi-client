@@ -9,6 +9,7 @@ import {
   useWorkspace,
   useWorkspaceLinkDelegation,
   useWorkspaceStore,
+  WorkspaceStore,
   type WorkspaceInstance,
   type WorkspacePage,
   type WorkspaceUiAdapter,
@@ -538,7 +539,10 @@ export function AppShell({
 
   async function logout() {
     // C 端仍走 Node 代理清 Cookie（保留 SSR 形态，见受保护布局的注释）。
-    await fetch("/api/auth/logout", { method: "POST" });
+    WorkspaceStore.clearPersisted();
+    const res = await fetch("/api/auth/logout", { method: "POST", headers: { "X-Neton-Csrf": "1" } }).catch(() => null);
+    // 退出失败时不跳走：会话仍然有效，不能让人以为已经退出（评审 R04）。
+    if (!res?.ok) { window.alert("退出失败，请检查网络后重试。会话仍然有效。"); return; }
     window.location.href = "/login";
   }
 

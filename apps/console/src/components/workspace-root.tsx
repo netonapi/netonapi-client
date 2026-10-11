@@ -51,7 +51,8 @@ export function WorkspaceRoot({ user }: { user: SessionUser }) {
     host: createBrowserHistoryHost(),
     homeHref: "/",
     pinHome: true,
-    persist: true,
+    // 按身份域 + 用户隔离：换人登录不会恢复出上一个人的页签（评审 R19）。
+    persist: { scope: `account:${user.userId}` },
   }));
 
   React.useEffect(() => {

@@ -1,8 +1,17 @@
 import { cookies } from "next/headers";
-import { backendUrl, SESSION_COOKIE } from "@neton/application-client-runtime/server";
+import { backendUrl, csrfRejection, SESSION_COOKIE } from "@neton/application-client-runtime/server";
 
+/**
+ * 浏览器 → 后端的代理：把会话 Cookie 换成 Authorization 头。
+ *
+ * 只转发 `/app/...`：用户端的会话只属于账号身份域，代理不该替浏览器访问后台或其他路由组
+ * （后端的身份域隔离也会拒绝，这里是纵深防御）。写请求先过 CSRF 检查。
+ */
 async function proxy(req: Request, ctx: { params: Promise<{ path: string[] }> }) {
   const { path } = await ctx.params;
+  if (path[0] !== "app") return Response.json({ code: 10004, message: "FORBIDDEN_PATH" }, { status: 403 });
+  const rejected = csrfRejection(req);
+  if (rejected) return rejected;
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!token) return Response.json({ code: 401, message: "未登录" }, { status: 401 });
 
