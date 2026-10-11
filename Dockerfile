@@ -9,10 +9,13 @@ ENV NEXT_TELEMETRY_DISABLED=1
 COPY Neton/neton-application-front/packages/front-workspace/package.json /src/Neton/neton-application-front/packages/front-workspace/package.json
 COPY Neton/neton-application-front/packages/front-workspace/src          /src/Neton/neton-application-front/packages/front-workspace/src
 
-# ── canonical 控制台模块（三个）──
+# ── canonical 控制台模块（四个）──
 COPY Neton/neton-application-client-gateway/package.json  /src/Neton/neton-application-client-gateway/package.json
 COPY Neton/neton-application-client-gateway/tsconfig.json /src/Neton/neton-application-client-gateway/tsconfig.json
 COPY Neton/neton-application-client-gateway/src           /src/Neton/neton-application-client-gateway/src
+COPY Neton/neton-application-client-account/package.json  /src/Neton/neton-application-client-account/package.json
+COPY Neton/neton-application-client-account/tsconfig.json /src/Neton/neton-application-client-account/tsconfig.json
+COPY Neton/neton-application-client-account/src           /src/Neton/neton-application-client-account/src
 COPY Neton/neton-application-client-member/package.json   /src/Neton/neton-application-client-member/package.json
 COPY Neton/neton-application-client-member/tsconfig.json  /src/Neton/neton-application-client-member/tsconfig.json
 COPY Neton/neton-application-client-member/src            /src/Neton/neton-application-client-member/src

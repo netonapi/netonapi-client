@@ -19,7 +19,8 @@ export const consoleNav: NavItem[] = [
   { name: "模型与价格", path: "/gateway/model", icon: "appstore" },
   { name: "用量与额度", path: "/gateway/usage", icon: "file-text" },
   { name: "充值与流水", path: "/payment/billing", icon: "pay-circle" },
-  { name: "个人资料", path: "/member/profile", icon: "user" },
+  { name: "邀请好友", path: "/member/invite", icon: "team" },
+  { name: "个人资料", path: "/account/profile", icon: "user" },
 ];
 
 /**
@@ -28,7 +29,7 @@ export const consoleNav: NavItem[] = [
  * 所以新增一个只从页面内跳转的页面时，要在这里写明它从哪进。
  */
 export const consoleSubPages: Array<{ path: string; from: string }> = [
-  { path: "/member/password", from: "右上角个人菜单「修改密码」、个人资料 → 登录密码" },
-  { path: "/member/email", from: "个人资料 → 邮箱「绑定 / 修改」" },
-  { path: "/member/mobile", from: "个人资料 → 手机号「绑定 / 修改」" },
+  { path: "/account/password", from: "右上角个人菜单「修改密码」、个人资料 → 登录密码" },
+  { path: "/account/email", from: "个人资料 → 邮箱「绑定 / 修改」" },
+  { path: "/account/mobile", from: "个人资料 → 手机号「绑定 / 修改」" },
 ];

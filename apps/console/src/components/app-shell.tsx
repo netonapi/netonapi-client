@@ -486,10 +486,10 @@ export function AppShell({
   const [noticeOpen, setNoticeOpen] = React.useState(false);
   const noticeRef = React.useRef<HTMLDivElement>(null);
   const profileRef = React.useRef<HTMLDivElement>(null);
-  // 个人中心入口只在对应页面已装配时出现：发行版可以不装 client-member，菜单不能指向不存在的页面
+  // 个人中心入口只在对应页面已装配时出现：发行版可以不装 client-account，菜单不能指向不存在的页面
   const accountLinks = [
-    { to: "/member/profile", label: "个人资料", Icon: UserRound },
-    { to: "/member/password", label: "修改密码", Icon: KeyRound },
+    { to: "/account/profile", label: "个人资料", Icon: UserRound },
+    { to: "/account/password", label: "修改密码", Icon: KeyRound },
   ].filter((link) => pages.some((page) => page.path === link.to));
   // 点弹层外任意处关闭（按下时判定：等到 click 才关，拖选文字松手在外面也会误关）
   React.useEffect(() => {

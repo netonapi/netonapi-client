@@ -20,6 +20,9 @@ importers:
 
   apps/console:
     dependencies:
+      '@neton/application-client-account':
+        specifier: file:../../../../Neton/neton-application-client-account
+        version: file:../../Neton/neton-application-client-account(@neton/application-client-contract@packages+client-contract)(@neton/application-client-kit@packages+client-kit)(@neton/application-client-runtime@packages+client-runtime)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@neton/application-client-contract':
         specifier: workspace:*
         version: link:../../packages/client-contract
@@ -511,6 +514,15 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@neton/application-client-account@file:../../Neton/neton-application-client-account':
+    resolution: {directory: ../../Neton/neton-application-client-account, type: directory}
+    peerDependencies:
+      '@neton/application-client-contract': ^1.0.0
+      '@neton/application-client-kit': ^1.0.0
+      '@neton/application-client-runtime': ^1.0.0
+      react: ^19.0.0
+      react-dom: ^19.0.0
 
   '@neton/application-client-gateway@file:../../Neton/neton-application-client-gateway':
     resolution: {directory: ../../Neton/neton-application-client-gateway, type: directory}
@@ -1963,6 +1975,14 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.4.14
+
+  '@neton/application-client-account@file:../../Neton/neton-application-client-account(@neton/application-client-contract@packages+client-contract)(@neton/application-client-kit@packages+client-kit)(@neton/application-client-runtime@packages+client-runtime)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
+    dependencies:
+      '@neton/application-client-contract': link:packages/client-contract
+      '@neton/application-client-kit': link:packages/client-kit
+      '@neton/application-client-runtime': link:packages/client-runtime
+      react: 19.2.7
+      react-dom: 19.2.7(react@19.2.7)
 
   '@neton/application-client-gateway@file:../../Neton/neton-application-client-gateway(@neton/application-client-contract@packages+client-contract)(@neton/application-client-kit@packages+client-kit)(@neton/application-client-runtime@packages+client-runtime)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
     dependencies:

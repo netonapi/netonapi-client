@@ -48,6 +48,13 @@ jobs:
           token: ${{ env.NETON_CI_TOKEN }}
           path: Neton/neton-application-client-gateway
 
+      - name: Checkout client-account pages
+        uses: actions/checkout@v4
+        with:
+          repository: neton-application/neton-application-client-account
+          token: ${{ env.NETON_CI_TOKEN }}
+          path: Neton/neton-application-client-account
+
       - name: Checkout client-member pages
         uses: actions/checkout@v4
         with:

@@ -14,6 +14,7 @@
     "@neton/application-client-contract": "workspace:*",
     "@neton/application-client-gateway": "file:../../../../Neton/neton-application-client-gateway",
     "@neton/application-client-kit": "workspace:*",
+    "@neton/application-client-account": "file:../../../../Neton/neton-application-client-account",
     "@neton/application-client-member": "file:../../../../Neton/neton-application-client-member",
     "@neton/application-client-payment": "file:../../../../Neton/neton-application-client-payment",
     "@neton/application-client-resource": "workspace:*",

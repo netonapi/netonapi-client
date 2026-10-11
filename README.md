@@ -50,12 +50,13 @@ NetonAPI 自助侧前端（仓名 `nanogate-client`）：用户在这里领 API 
 据此生成页面注册表：
 
 ```
-@neton/application-client-member    # 通用：账号
+@neton/application-client-account   # 通用：账号（资料、密码、邮箱、手机）
+@neton/application-client-member    # 通用：会员成长（邀请好友）
 @neton/application-client-payment   # 通用：充值与账单
 @neton/application-client-gateway   # 产品：NetonAPI 的 API 网关自助面
 ```
 
-三个模块都以 `file:../../../../Neton/neton-application-client-*` 引入，所以本仓必须正好落在
+四个模块都以 `file:../../../../Neton/neton-application-client-*` 引入，所以本仓必须正好落在
 持有 `Neton/` 的那层目录的**两层深处**：
 
 ```
