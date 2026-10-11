@@ -81,7 +81,7 @@ export interface MemberLoginResponse {
   scope: string[];
 }
 
-/** 与 module-member /app/member/user/get 对齐（宽松：以后端为准）。 */
+/** 与 module-account 的 /app/member/user/get 对齐（宽松：以后端为准）。 */
 export interface MemberProfile {
   id: number;
   username?: string | null;

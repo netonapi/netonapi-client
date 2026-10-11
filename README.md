@@ -24,7 +24,7 @@ NetonAPI 自助侧前端（仓名 `nanogate-client`）：用户在这里领 API 
 
 | 维度 | `nanogate-admin`（B 端） | `nanogate-client`（C 端） |
 |---|---|---|
-| 账号体系 | `module-system` 管理员，`/admin` 组 | `module-member` 会员，`/app` 组 |
+| 账号体系 | `module-system` 管理员，`/admin` 组 | `module-account` 账号，`/app` 组 |
 | 登录端点 | `/admin/system/auth/login` | `/app/auth/login-username` |
 | 导航 | 后端菜单驱动（RBAC） | 静态导航 `apps/console/src/config/console.nav.ts` |
 | 会话时长 | 取自 `expiresTime`（毫秒时间戳） | 取自 `expiresIn`（秒） |
