@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { apiFetch, apiWrite } from "@neton/application-client-runtime/client";
+import { useDescribeError } from "@neton/application-client-runtime/errors";
 import { useQuery, useQueryClient } from "@neton/application-client-runtime/client-context";
 import { formatDateTime } from "@neton/application-client-runtime/types";
 import {
@@ -161,6 +162,7 @@ client = Anthropic(base_url="${base}", api_key="${sampleKey}")`}</pre>
 
 /** 我的 API Key。明文只在创建后展示一次——服务端只存哈希，之后谁也取不回。 */
 export default function Page() {
+  const describeError = useDescribeError("gateway");
   const [error, setError] = React.useState<string | null>(null);
   const [editing, setEditing] = React.useState<{ id: number | null; form: TokenForm } | null>(null);
   const [busy, setBusy] = React.useState(false);
@@ -178,7 +180,7 @@ export default function Page() {
   const loading = tokensQ.isLoading;
   const info = infoQ.data ?? null;
   const catalog = React.useMemo(() => (catalogQ.data ?? []).map((x) => x.model), [catalogQ.data]);
-  const listError = tokensQ.error ? (tokensQ.error as Error).message : null;
+  const listError = tokensQ.error ? describeError(tokensQ.error) : null;
   const load = () => client.invalidateQueries({ queryKey: ["gateway-my-tokens"] });
 
   async function submit() {
@@ -193,7 +195,7 @@ export default function Page() {
         await apiWrite("/app/gateway/token/update", "PUT", { id: editing.id, ...body });
       }
       setEditing(null); void load();
-    } catch (cause) { setFormError((cause as Error).message); } finally { setBusy(false); }
+    } catch (cause) { setFormError(describeError(cause)); } finally { setBusy(false); }
   }
 
   async function setStatus(row: MyToken, status: number) {
@@ -201,7 +203,7 @@ export default function Page() {
     try {
       await apiWrite(`/app/gateway/token/update-status?id=${row.id}&status=${status}`, "PUT", {});
       void load();
-    } catch (cause) { setError((cause as Error).message); }
+    } catch (cause) { setError(describeError(cause)); }
   }
 
   async function remove(row: MyToken) {
@@ -210,7 +212,7 @@ export default function Page() {
     try {
       await apiWrite(`/app/gateway/token/delete/${row.id}`, "DELETE", {});
       void load();
-    } catch (cause) { setError((cause as Error).message); }
+    } catch (cause) { setError(describeError(cause)); }
   }
 
   const actions = (row: MyToken): RowAction[] => [

@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { apiFetch } from "@neton/application-client-runtime/client";
+import { useDescribeError } from "@neton/application-client-runtime/errors";
 import { useQuery } from "@neton/application-client-runtime/client-context";
 import { DataTable, PageHeader, type DataColumn } from "@neton/application-client-kit";
 
@@ -17,11 +18,12 @@ const CAP_LABEL: Record<string, string> = { chat: "对话", embeddings: "向量"
 
 /** 模型广场。未登录也能看——这是拉新入口，只暴露模型名与价格。 */
 export default function Page() {
+  const describeError = useDescribeError("gateway");
   // useQuery 而不是 effect 里取数：工作区切回页签会重挂 effect，那样每次切换都整页重拉、表格先清空
   const query = useQuery({ queryKey: ["gateway-models"], queryFn: () => apiFetch<PublicModel[]>("/app/gateway/model/list") });
   const rows = query.data ?? [];
   const loading = query.isLoading;
-  const error = query.error ? (query.error as Error).message : null;
+  const error = query.error ? describeError(query.error) : null;
 
   const columns: DataColumn<PublicModel>[] = [
     { key: "model", header: "模型", cell: (r) => r.model },

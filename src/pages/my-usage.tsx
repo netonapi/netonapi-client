@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { apiFetch } from "@neton/application-client-runtime/client";
+import { useDescribeError } from "@neton/application-client-runtime/errors";
 import { useQuery } from "@neton/application-client-runtime/client-context";
 import { formatDateTime } from "@neton/application-client-runtime/types";
 import {
@@ -51,6 +52,7 @@ function BarChart({ points, valueOf, format }: { points: Stats["daily"]; valueOf
 }
 
 export default function Page() {
+  const describeError = useDescribeError("gateway");
   const [days, setDays] = React.useState(7);
   const [page, setPage] = React.useState(1);
   const [model, setModel] = React.useState("");
@@ -76,7 +78,7 @@ export default function Page() {
   const total = logsQ.data?.total ?? 0;
   const loading = logsQ.isLoading || balanceQ.isLoading;
   const firstError = balanceQ.error ?? logsQ.error ?? statsQ.error;
-  const error = firstError ? (firstError as Error).message : null;
+  const error = firstError ? describeError(firstError) : null;
 
   const columns: DataColumn<UsageLog>[] = [
     { key: "createdAt", header: "时间", cell: (r) => formatDateTime(r.createdAt) },
