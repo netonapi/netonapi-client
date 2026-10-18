@@ -5,7 +5,8 @@
     "dev": "pnpm --filter @neton/application-client-console dev",
     "build": "pnpm --filter @neton/application-client-console build",
     "typecheck": "pnpm registry && pnpm --filter @neton/application-client-console typecheck",
-    "registry": "tsx scripts/generate-registry.mts"
+    "registry": "tsx scripts/generate-registry.mts",
+    "test": "pnpm --filter @neton/application-client-runtime test"
   },
   "devDependencies": {
     "tsx": "^4.23.15",

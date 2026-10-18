@@ -9,7 +9,8 @@ export async function POST(req: Request) {
     body,
   });
   if (res.code !== 0 || !res.data) {
-    return Response.json({ code: res.code || -1, message: res.message || "登录失败" }, { status: 401 });
+    // 原样透传后端的机器码与字段错误，页面经 useDescribeError 翻译。
+    return Response.json({ code: res.code || 4, message: res.message || "INVALID_RESPONSE", errors: res.errors }, { status: 401 });
   }
   const maxAge = Math.max(60, Math.floor(res.data.expiresIn) || 8 * 3600);
   (await cookies()).set(SESSION_COOKIE, res.data.accessToken, {

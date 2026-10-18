@@ -2,8 +2,11 @@
 
 export interface Envelope<T> {
   code: number;
+  /** 失败时是机器码（spec ERROR_CODE_SPEC「消息即机器码」），界面经 useDescribeError 翻译，不直接显示。 */
   message?: string;
   data?: T;
+  /** 字段级错误（见 client.ts 的 ApiFieldError）。 */
+  errors?: { field?: string; message: string; code?: string; params?: Record<string, number> }[];
 }
 
 export interface LoginResponse {
@@ -54,19 +57,32 @@ export interface PageResponse<T> {
   totalPages: number;
 }
 
+/**
+ * 当前格式化语言与时区。由 I18nProvider 在语言切换时设置（见 i18n.tsx 的 setFormatLocale），
+ * 使模块里直接调用的 [formatDateTime] 不必改成 hook 也能跟随当前语言。
+ */
+let formatLocale = process.env.NEXT_PUBLIC_NETON_DEFAULT_LOCALE?.trim() || "zh-CN";
+let formatTimeZone: string | undefined = process.env.NEXT_PUBLIC_NETON_TIME_ZONE?.trim() || undefined;
+
+export function setFormatLocale(locale: string, timeZone?: string): void {
+  formatLocale = locale;
+  formatTimeZone = timeZone;
+}
+
 export function formatDateTime(value?: number | string | null): string {
   if (value === null || value === undefined || value === "" || value === 0 || value === "0") return "-";
   const numeric = typeof value === "string" && /^\d+$/.test(value) ? Number(value) : value;
   const milliseconds = typeof numeric === "number" && numeric < 10_000_000_000 ? numeric * 1000 : numeric;
   const date = new Date(milliseconds);
   if (Number.isNaN(date.getTime())) return String(value);
-  return new Intl.DateTimeFormat("zh-CN", {
+  return new Intl.DateTimeFormat(formatLocale, {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
+    timeZone: formatTimeZone,
   }).format(date);
 }
 

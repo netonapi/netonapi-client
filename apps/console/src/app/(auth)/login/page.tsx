@@ -3,11 +3,14 @@
 import * as React from "react";
 import { ArrowRight, Check, Eye, EyeOff, Fingerprint, KeyRound, Moon, ShieldCheck, Sun } from "lucide-react";
 import { Alert, Button, Input, Label } from "@neton/application-client-kit";
+import { apiErrorFromEnvelope } from "@neton/application-client-runtime/client";
+import { useDescribeError } from "@neton/application-client-runtime/errors";
 import { BrandMark } from "@/components/brand-mark";
 import { useSiteBrand } from "@/components/site-brand";
 
 export default function LoginPage() {
   const brand = useSiteBrand();
+  const describeError = useDescribeError("account");
   const [username, setUsername] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [passwordVisible, setPasswordVisible] = React.useState(false);
@@ -42,7 +45,7 @@ export default function LoginPage() {
         window.location.href = "/";
         return;
       }
-      setError(body.message || "登录失败，请检查账号信息");
+      setError(describeError(apiErrorFromEnvelope(body, res.status, res.headers)));
     } catch {
       setError("无法连接到管理服务，请稍后重试");
     } finally {

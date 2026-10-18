@@ -2,12 +2,15 @@
 
 import * as React from "react";
 import { Alert, Button, Input, Label } from "@neton/application-client-kit";
+import { apiErrorFromEnvelope } from "@neton/application-client-runtime/client";
+import { useDescribeError } from "@neton/application-client-runtime/errors";
 import { BrandMark } from "@/components/brand-mark";
 import { useSiteBrand } from "@/components/site-brand";
 
 /** 找回密码：邮箱 → 验证码 → 新密码。只对绑定过邮箱的账号有效；后端对未知邮箱也返回成功，不泄露账号存在与否。 */
 export default function ForgotPasswordPage() {
   const brand = useSiteBrand();
+  const describeError = useDescribeError("account");
   const [email, setEmail] = React.useState("");
   const [code, setCode] = React.useState("");
   const [password, setPassword] = React.useState("");
@@ -26,14 +29,14 @@ export default function ForgotPasswordPage() {
 
   async function call(body: Record<string, string>) {
     const res = await fetch("/api/auth/forgot", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-    const data = (await res.json().catch(() => ({}))) as { code?: number; message?: string };
-    if (!res.ok || data.code !== 0) throw new Error(data.message || "请求失败");
+    const data = (await res.json().catch(() => null)) as { code?: number; message?: string } | null;
+    if (!res.ok || data?.code !== 0) throw apiErrorFromEnvelope(data, res.status, res.headers);
   }
 
   async function send() {
     setError(null); setBusy(true);
     try { await call({ action: "send", email }); setSent(true); setCooldown(60); }
-    catch (cause) { setError((cause as Error).message); } finally { setBusy(false); }
+    catch (cause) { setError(describeError(cause)); } finally { setBusy(false); }
   }
 
   async function reset(e: React.FormEvent) {
@@ -41,7 +44,7 @@ export default function ForgotPasswordPage() {
     if (password !== confirm) { setError("两次输入的新密码不一致"); return; }
     setBusy(true);
     try { await call({ action: "reset", email, code, newPassword: password }); setDone(true); }
-    catch (cause) { setError((cause as Error).message); } finally { setBusy(false); }
+    catch (cause) { setError(describeError(cause)); } finally { setBusy(false); }
   }
 
   return (

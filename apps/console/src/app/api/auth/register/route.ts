@@ -14,7 +14,14 @@ export async function POST(req: Request) {
   const username = input?.username?.trim() ?? "";
   const password = input?.password ?? "";
   if (!username || !password) {
-    return Response.json({ code: -1, message: "请填写账号和密码" }, { status: 400 });
+    return Response.json({
+      code: 10100,
+      message: "VALIDATION_FAILED",
+      errors: [
+        ...(username ? [] : [{ field: "username", code: "REQUIRED", message: "REQUIRED" }]),
+        ...(password ? [] : [{ field: "password", code: "REQUIRED", message: "REQUIRED" }]),
+      ],
+    }, { status: 400 });
   }
   // 后端 v1 只接受 USERNAME_PASSWORD；手机验证码注册走 sms-login，不在本入口。
   const payload: Record<string, string> = { mode: "USERNAME_PASSWORD", username, password };
@@ -28,7 +35,7 @@ export async function POST(req: Request) {
     body: JSON.stringify(payload),
   });
   if (res.code !== 0 || !res.data) {
-    return Response.json({ code: res.code || -1, message: res.message || "注册失败" }, { status: 400 });
+    return Response.json({ code: res.code || 4, message: res.message || "INVALID_RESPONSE", errors: res.errors }, { status: 400 });
   }
   // 注册成功即登录：与 login route 同一套会话 cookie，用户不必再登一次。
   const maxAge = Math.max(60, Math.floor(res.data.expiresIn) || 8 * 3600);

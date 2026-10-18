@@ -13,7 +13,7 @@ async function proxy(req: Request, ctx: { params: Promise<{ path: string[] }> })
   const rejected = csrfRejection(req);
   if (rejected) return rejected;
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
-  if (!token) return Response.json({ code: 401, message: "未登录" }, { status: 401 });
+  if (!token) return Response.json({ code: 10000, message: "AUTH_REQUIRED" }, { status: 401 });
 
   const url = new URL(req.url);
   const target = `${backendUrl()}/${path.join("/")}${url.search}`;

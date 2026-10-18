@@ -3,6 +3,7 @@
 import * as React from "react";
 import { apiFetch, apiWrite } from "@neton/application-client-runtime/client";
 import { useMutation, usePermission, useQuery, useQueryClient } from "@neton/application-client-runtime/client-context";
+import { useDescribeError } from "@neton/application-client-runtime/errors";
 import type { PageResponse } from "@neton/application-client-runtime/types";
 import { formatDateTime } from "@neton/application-client-runtime/types";
 import {
@@ -50,6 +51,8 @@ export interface ResourcePageConfig {
   mapSave?: (record: ResourceRecord) => Record<string, unknown>;
   /** 模块专属的轻量页头动作，例如全部标记已读。 */
   headerActions?: React.ReactNode;
+  /** 模块 id：错误按该模块语言包的 `error.<CODE>` 翻译（缺省只用通用错误说明）。 */
+  namespace?: string;
 }
 
 function valueOf(value: unknown): string | number {
@@ -85,6 +88,7 @@ export function ResourcePage({ config }: { config: ResourcePageConfig }) {
   const [viewing, setViewing] = React.useState<ResourceRecord | null>(null);
   const [detailLoading, setDetailLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const describeError = useDescribeError(config.namespace);
 
   const params = new URLSearchParams({ pageNo: String(page), pageSize: String(pageSize) });
   Object.entries(filters).forEach(([key, value]) => value !== "" && params.set(key, value));
@@ -107,7 +111,7 @@ export function ResourcePage({ config }: { config: ResourcePageConfig }) {
       return apiWrite<void>(`/admin${config.endpoint}/${record.id ? "update" : "create"}`, record.id ? "PUT" : "POST", body);
     },
     onSuccess: async () => { setForm(null); await queryClient.invalidateQueries({ queryKey: [config.resourceKey] }); },
-    onError: (cause: Error) => setError(cause.message),
+    onError: (cause: Error) => setError(describeError(cause)),
   });
   const remove = useMutation({
     mutationFn: (record: ResourceRecord) => apiWrite<void>(`/admin${config.endpoint}/delete/${record.id}`, "DELETE"),
@@ -121,7 +125,7 @@ export function ResourcePage({ config }: { config: ResourcePageConfig }) {
       key: "actions", header: "操作", headerClassName: "text-right", className: "text-right",
       cell: (row: ResourceRecord) => <RowActions primary={[
         ...(config.rowActions?.(row).primary ?? []),
-        ...(config.detailFields ? [{ label: "详情", onClick: async () => { setDetailLoading(true); setError(null); try { setViewing(await apiFetch<ResourceRecord>(`/admin${config.endpoint}/${config.detailPath?.(row) ?? `get/${row.id}`}`)); } catch (cause) { setError((cause as Error).message); setViewing(row); } finally { setDetailLoading(false); } } }] : []),
+        ...(config.detailFields ? [{ label: "详情", onClick: async () => { setDetailLoading(true); setError(null); try { setViewing(await apiFetch<ResourceRecord>(`/admin${config.endpoint}/${config.detailPath?.(row) ?? `get/${row.id}`}`)); } catch (cause) { setError(describeError(cause)); setViewing(row); } finally { setDetailLoading(false); } } }] : []),
         ...(!config.readOnly && canUpdate ? [{ label: "编辑", tone: "primary" as const, onClick: () => { setError(null); setForm({ ...row }); } }] : []),
       ]} more={[...(config.rowActions?.(row).more ?? []), ...(!config.readOnly && canDelete ? [{ label: "删除", danger: true, onClick: () => setDeleting(row) }] : [])]} />,
     } satisfies DataColumn<ResourceRecord>] : []),
@@ -152,7 +156,7 @@ export function ResourcePage({ config }: { config: ResourcePageConfig }) {
       </div>
     </FilterPanel>}
     <section className="front-surface overflow-hidden rounded-xl">
-      <DataTable columns={columns} rows={query.data?.list ?? []} rowKey={(row) => row.id} loading={query.isPending} error={query.error?.message} />
+      <DataTable columns={columns} rows={query.data?.list ?? []} rowKey={(row) => row.id} loading={query.isPending} error={query.error ? describeError(query.error) : undefined} />
       <Pagination page={page} pageSize={pageSize} total={query.data?.total ?? 0} loading={query.isFetching} onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(1); }} />
     </section>
     <Drawer open={Boolean(form)} onClose={() => setForm(null)} title={`${form?.id ? "编辑" : "新增"}${config.title}`} footer={<><Button variant="ghost" onClick={() => setForm(null)}>取消</Button><Button type="submit" form={`${config.resourceKey}-form`} disabled={save.isPending}>保存</Button></>}>

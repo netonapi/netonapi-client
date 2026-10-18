@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { Providers } from "@/components/providers";
 import { SiteBrandProvider } from "@/components/site-brand";
 import { getSiteBrand } from "@/lib/site-brand";
 
@@ -13,8 +14,10 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const brand = await getSiteBrand();
+  // lang 先给默认语言，I18nProvider 挂载后按用户选择更新。
+  const defaultLocale = process.env.NEXT_PUBLIC_NETON_DEFAULT_LOCALE?.trim() || "zh-CN";
   return (
-    <html lang="zh-CN" suppressHydrationWarning>
+    <html lang={defaultLocale} suppressHydrationWarning>
       <head>
         <script
           dangerouslySetInnerHTML={{
@@ -23,7 +26,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         />
       </head>
       <body>
-        <SiteBrandProvider brand={brand}>{children}</SiteBrandProvider>
+        <Providers>
+          <SiteBrandProvider brand={brand}>{children}</SiteBrandProvider>
+        </Providers>
       </body>
     </html>
   );

@@ -10,17 +10,26 @@
     "./client": "./src/client.ts",
     "./client-context": "./src/client-context.tsx",
     "./menu": "./src/menu.ts",
-    "./types": "./src/types.ts"
+    "./types": "./src/types.ts",
+    "./i18n": "./src/i18n.tsx",
+    "./messages": "./src/messages.ts",
+    "./errors": "./src/errors.ts",
+    "./workspace": "./src/workspace.ts"
   },
   "peerDependencies": {
+    "@neton/application-front-workspace": "*",
     "@tanstack/react-query": "^5.0.0",
     "react": "^19.0.0"
   },
   "devDependencies": {
     "@neton/application-client-contract": "workspace:*",
+    "@neton/application-front-workspace": "file:../../../../Neton/neton-application-front/packages/front-workspace",
     "@tanstack/react-query": "^5.104.2",
     "@types/react": "^19.3.0",
     "react": "^19.3.0",
     "typescript": "^7.0.2"
+  },
+  "scripts": {
+    "test": "node --experimental-strip-types --test src/*.test.mts"
   }
 }

@@ -3,11 +3,14 @@
 import * as React from "react";
 import { ArrowRight, Check, Eye, EyeOff, KeyRound, Moon, Sparkles, Sun, UserPlus } from "lucide-react";
 import { Alert, Button, Input, Label } from "@neton/application-client-kit";
+import { apiErrorFromEnvelope } from "@neton/application-client-runtime/client";
+import { useDescribeError } from "@neton/application-client-runtime/errors";
 import { BrandMark } from "@/components/brand-mark";
 import { useSiteBrand } from "@/components/site-brand";
 
 export default function RegisterPage() {
   const brand = useSiteBrand();
+  const describeError = useDescribeError("account");
   const [username, setUsername] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [confirm, setConfirm] = React.useState("");
@@ -54,7 +57,7 @@ export default function RegisterPage() {
         window.location.href = "/";
         return;
       }
-      setError(body.message || "注册失败，请稍后重试");
+      setError(describeError(apiErrorFromEnvelope(body, res.status, res.headers)));
     } catch {
       setError("无法连接到服务，请稍后重试");
     } finally {

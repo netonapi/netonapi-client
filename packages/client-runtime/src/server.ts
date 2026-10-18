@@ -27,8 +27,10 @@ export function backendUrl(): string {
 }
 
 /**
- * 调后端 app API（envelope {code,message,data}）。
- * 网络错误 / 非 JSON 统一折叠成 code=-1，401 保留原码，调用方据 code 决策。
+ * 调后端 app API（envelope {code,message,data,errors}）。
+ * 401 及其它状态**先解析后端 envelope**：像 INVALID_CREDENTIALS(10011) 这种带机器码的认证失败要原样透给前端翻译；
+ * 只有解不出 JSON envelope 时才折叠成通用机器码（网络不通 → `BACKEND_UNREACHABLE`，401 → `AUTH_REQUIRED`，
+ * 其余 → `INVALID_RESPONSE`）。会话校验的调用方一律按 `code !== 0` 判失败，语义不变。排障细节只进日志。
  */
 export async function backendJson<T>(
   path: string,
@@ -47,14 +49,19 @@ export async function backendJson<T>(
       cache: "no-store",
     });
   } catch (e) {
-    return { code: -1, message: `backend unreachable: ${String(e)}` };
+    console.error(`[backend] ${path} unreachable: ${String(e)}`);
+    return { code: 3, message: "BACKEND_UNREACHABLE" };
   }
-  if (res.status === 401) return { code: 401, message: "unauthorized" };
+  let envelope: Envelope<T> | null = null;
   try {
-    return (await res.json()) as Envelope<T>;
+    envelope = (await res.json()) as Envelope<T>;
   } catch {
-    return { code: -1, message: `bad backend response (${res.status})` };
+    envelope = null;
   }
+  if (envelope && typeof envelope.code === "number") return envelope;
+  if (res.status === 401) return { code: 10000, message: "AUTH_REQUIRED" };
+  console.error(`[backend] ${path} bad response (${res.status})`);
+  return { code: 4, message: "INVALID_RESPONSE" };
 }
 
 /** 每请求去重：当前登录会员资料（layout 与 catch-all 各取一次只打一次后端）。 */
