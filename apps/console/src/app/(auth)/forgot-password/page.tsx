@@ -4,6 +4,7 @@ import * as React from "react";
 import { Alert, Button, Input, Label } from "@neton/application-client-kit";
 import { apiErrorFromEnvelope } from "@neton/application-client-runtime/client";
 import { useDescribeError } from "@neton/application-client-runtime/errors";
+import { useCaptcha } from "@neton/application-client-runtime/captcha-widget";
 import { BrandMark } from "@/components/brand-mark";
 import { useSiteBrand } from "@/components/site-brand";
 
@@ -11,6 +12,8 @@ import { useSiteBrand } from "@/components/site-brand";
 export default function ForgotPasswordPage() {
   const brand = useSiteBrand();
   const describeError = useDescribeError("account");
+  // 人机验证只挡发码：重置那一步已经要验证码，刷不了短信/邮件
+  const captcha = useCaptcha(brand.captcha, "send_code");
   const [email, setEmail] = React.useState("");
   const [code, setCode] = React.useState("");
   const [password, setPassword] = React.useState("");
@@ -27,16 +30,16 @@ export default function ForgotPasswordPage() {
     return () => window.clearTimeout(t);
   }, [cooldown]);
 
-  async function call(body: Record<string, string>) {
-    const res = await fetch("/api/auth/forgot", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  async function call(body: Record<string, string>, extraHeaders: Record<string, string> = {}) {
+    const res = await fetch("/api/auth/forgot", { method: "POST", headers: { "Content-Type": "application/json", ...extraHeaders }, body: JSON.stringify(body) });
     const data = (await res.json().catch(() => null)) as { code?: number; message?: string } | null;
     if (!res.ok || data?.code !== 0) throw apiErrorFromEnvelope(data, res.status, res.headers);
   }
 
   async function send() {
     setError(null); setBusy(true);
-    try { await call({ action: "send", email }); setSent(true); setCooldown(60); }
-    catch (cause) { setError(describeError(cause)); } finally { setBusy(false); }
+    try { await call({ action: "send", email }, captcha.headers); setSent(true); setCooldown(60); }
+    catch (cause) { setError(describeError(cause)); } finally { setBusy(false); captcha.reset(); }
   }
 
   async function reset(e: React.FormEvent) {
@@ -74,11 +77,12 @@ export default function ForgotPasswordPage() {
               <Label htmlFor="email">邮箱</Label>
               <div className="flex gap-2">
                 <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" className="h-11 bg-[var(--background)] px-3.5" />
-                <Button type="button" variant="outline" onClick={() => void send()} disabled={busy || cooldown > 0 || !email.includes("@")} className="h-11 shrink-0">
+                <Button type="button" variant="outline" onClick={() => void send()} disabled={busy || cooldown > 0 || !email.includes("@") || !captcha.ready} className="h-11 shrink-0">
                   {cooldown > 0 ? `${cooldown}s` : sent ? "重新发送" : "发送验证码"}
                 </Button>
               </div>
             </div>
+            {captcha.widget}
             <div className="space-y-1.5">
               <Label htmlFor="code">验证码</Label>
               <Input id="code" value={code} onChange={(e) => setCode(e.target.value)} placeholder="邮件里的 6 位数字" inputMode="numeric" className="h-11 bg-[var(--background)] px-3.5" />

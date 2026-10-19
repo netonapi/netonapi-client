@@ -5,12 +5,14 @@ import { ArrowRight, Check, Eye, EyeOff, KeyRound, Moon, Sparkles, Sun, UserPlus
 import { Alert, Button, Input, Label } from "@neton/application-client-kit";
 import { apiErrorFromEnvelope } from "@neton/application-client-runtime/client";
 import { useDescribeError } from "@neton/application-client-runtime/errors";
+import { useCaptcha } from "@neton/application-client-runtime/captcha-widget";
 import { BrandMark } from "@/components/brand-mark";
 import { useSiteBrand } from "@/components/site-brand";
 
 export default function RegisterPage() {
   const brand = useSiteBrand();
   const describeError = useDescribeError("account");
+  const captcha = useCaptcha(brand.captcha, "register");
   const [username, setUsername] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [confirm, setConfirm] = React.useState("");
@@ -39,7 +41,7 @@ export default function RegisterPage() {
   }
 
   const mismatch = confirm.length > 0 && confirm !== password;
-  const canSubmit = username.trim().length > 0 && password.length >= 6 && confirm === password && !pending;
+  const canSubmit = username.trim().length > 0 && password.length >= 6 && confirm === password && captcha.ready && !pending;
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -49,7 +51,7 @@ export default function RegisterPage() {
     try {
       const res = await fetch("/api/auth/register", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...captcha.headers },
         body: JSON.stringify({ username: username.trim(), password, nickname, inviteCode }),
       });
       const body = await res.json();
@@ -58,8 +60,10 @@ export default function RegisterPage() {
         return;
       }
       setError(describeError(apiErrorFromEnvelope(body, res.status, res.headers)));
+      captcha.reset();
     } catch {
       setError("无法连接到服务，请稍后重试");
+      captcha.reset();
     } finally {
       setPending(false);
     }
@@ -152,6 +156,7 @@ export default function RegisterPage() {
                   <Label htmlFor="inviteCode">邀请码（可选）</Label>
                   <Input id="inviteCode" name="inviteCode" value={inviteCode} onChange={(e) => setInviteCode(e.target.value)} placeholder="有邀请码可获得额度奖励" autoComplete="off" className="h-11 bg-[var(--background)] px-3.5" />
                 </div>
+                {captcha.widget}
                 <Button type="submit" className="group mt-2 h-11 w-full gap-2 text-sm" disabled={!canSubmit}>
                   {pending ? "正在创建…" : "创建账号"}
                   {!pending && <ArrowRight size={15} className="transition-transform group-hover:translate-x-0.5" />}
@@ -159,7 +164,7 @@ export default function RegisterPage() {
               </form>
               <div className="mt-7 flex items-start gap-2.5 border-t border-[var(--border)] pt-5 text-[11px] leading-5 text-[var(--muted-foreground)]">
                 <KeyRound size={15} className="mt-0.5 shrink-0 text-[var(--primary)]" />
-                <span>已有账号？<a href="/login" className="font-medium text-[var(--primary)] hover:underline">直接登录</a></span>
+                <span>已有账号？<a href="/login" className="font-medium text-[var(--primary)] hover:underline">直接登录</a> · <a href="/pricing" className="hover:underline">查看模型价格</a></span>
               </div>
             </div>
           </section>

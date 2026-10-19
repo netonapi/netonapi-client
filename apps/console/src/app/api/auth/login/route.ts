@@ -1,11 +1,12 @@
 import { cookies } from "next/headers";
-import { backendJson, SESSION_COOKIE } from "@neton/application-client-runtime/server";
+import { backendJson, forwardedClientHeaders, SESSION_COOKIE } from "@neton/application-client-runtime/server";
 import type { MemberLoginResponse } from "@neton/application-client-runtime/types";
 
 export async function POST(req: Request) {
   const body = await req.text();
   const res = await backendJson<MemberLoginResponse>("/app/auth/login-username", undefined, {
     method: "POST",
+    headers: forwardedClientHeaders(req.headers),
     body,
   });
   if (res.code !== 0 || !res.data) {

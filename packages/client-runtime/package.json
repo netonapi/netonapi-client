@@ -14,7 +14,9 @@
     "./i18n": "./src/i18n.tsx",
     "./messages": "./src/messages.ts",
     "./errors": "./src/errors.ts",
-    "./workspace": "./src/workspace.ts"
+    "./workspace": "./src/workspace.ts",
+    "./captcha": "./src/captcha-config.ts",
+    "./captcha-widget": "./src/captcha.tsx"
   },
   "peerDependencies": {
     "@neton/application-front-workspace": "*",

@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { backendJson, SESSION_COOKIE } from "@neton/application-client-runtime/server";
+import { backendJson, forwardedClientHeaders, SESSION_COOKIE } from "@neton/application-client-runtime/server";
 import type { MemberLoginResponse } from "@neton/application-client-runtime/types";
 
 interface RegisterInput {
@@ -32,6 +32,7 @@ export async function POST(req: Request) {
 
   const res = await backendJson<MemberLoginResponse>("/app/auth/register", undefined, {
     method: "POST",
+    headers: forwardedClientHeaders(req.headers),
     body: JSON.stringify(payload),
   });
   if (res.code !== 0 || !res.data) {

@@ -2,6 +2,8 @@
 import { cache } from "react";
 import type { Envelope, MemberProfile } from "./types";
 
+export { forwardedClientHeaders } from "./forwarded";
+
 export const SESSION_COOKIE = "neton_client_session";
 
 /** 浏览器发起的写请求必须带这个头（与后台 RealmAuthenticator 同一规则）。 */
