@@ -2,12 +2,14 @@
 
 import { AppWindow, ShieldCheck, Sparkles } from "lucide-react";
 import { useSession } from "@neton/application-client-runtime/client-context";
+import { useT } from "@neton/application-client-runtime/i18n";
 import { installedModules } from "@/generated/modules.generated";
 
 export default function Dashboard() {
   const { user } = useSession();
+  const t = useT("console");
   const hour = new Date().getHours();
-  const greeting = hour < 6 ? "夜深了" : hour < 12 ? "早上好" : hour < 18 ? "下午好" : "晚上好";
+  const greeting = hour < 6 ? t("dashboard.greetingNight") : hour < 12 ? t("dashboard.greetingMorning") : hour < 18 ? t("dashboard.greetingAfternoon") : t("dashboard.greetingEvening");
 
   return (
     <div className="space-y-5">
@@ -17,20 +19,20 @@ export default function Dashboard() {
           <Sparkles size={12} /> CONSOLE OVERVIEW
         </span>
         <h1 className="mt-5 text-2xl font-semibold tracking-[-0.03em] text-[var(--foreground)] md:text-3xl">
-          {greeting}，{user.nickname || user.username}
+          {t("dashboard.greeting", { greeting, name: user.nickname || user.username })}
         </h1>
         <p className="mt-3 max-w-xl text-sm leading-6 text-[var(--muted-foreground)]">
-          账号会话已就绪。产品模块安装后，功能入口会出现在左侧导航。
+          {t("dashboard.ready")}
         </p>
       </section>
 
       <section className="front-surface rounded-xl p-5 md:p-6">
-        <h2 className="text-base font-bold text-[var(--foreground)]">发行版信息</h2>
-        <p className="mt-1 text-xs text-[var(--muted-foreground)]">当前构建加载的前端模块（{installedModules.length}）</p>
+        <h2 className="text-base font-bold text-[var(--foreground)]">{t("dashboard.distribution")}</h2>
+        <p className="mt-1 text-xs text-[var(--muted-foreground)]">{t("dashboard.distributionNote", { count: installedModules.length })}</p>
         <div className="mt-5 space-y-3">
           {installedModules.length === 0 && (
             <div className="rounded-xl border border-dashed border-[var(--border)] p-4 text-xs text-[var(--muted-foreground)]">
-              尚未安装模块 —— 在 apps/console/client.modules.ts 中登记产品模块。
+              {t("dashboard.noModules")}
             </div>
           )}
           {installedModules.map((module) => (
@@ -43,7 +45,7 @@ export default function Dashboard() {
         </div>
         <div className="mt-5 flex items-start gap-3 rounded-xl bg-[var(--primary-soft)] p-4 text-xs leading-5 text-[var(--muted-foreground)]">
           <ShieldCheck size={16} className="mt-0.5 shrink-0 text-[var(--primary)]" />
-          会话由 HttpOnly Cookie 承载，页面在服务端渲染时已完成鉴权。
+          {t("dashboard.session")}
         </div>
       </section>
     </div>

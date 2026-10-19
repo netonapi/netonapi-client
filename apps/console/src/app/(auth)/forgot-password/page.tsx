@@ -5,12 +5,15 @@ import { Alert, Button, Input, Label } from "@neton/application-client-kit";
 import { apiErrorFromEnvelope } from "@neton/application-client-runtime/client";
 import { useDescribeError } from "@neton/application-client-runtime/errors";
 import { useCaptcha } from "@neton/application-client-runtime/captcha-widget";
+import { useT } from "@neton/application-client-runtime/i18n";
 import { BrandMark } from "@/components/brand-mark";
+import { LocaleSwitcher } from "@/components/locale-switcher";
 import { useSiteBrand } from "@/components/site-brand";
 
 /** 找回密码：邮箱 → 验证码 → 新密码。只对绑定过邮箱的账号有效；后端对未知邮箱也返回成功，不泄露账号存在与否。 */
 export default function ForgotPasswordPage() {
   const brand = useSiteBrand();
+  const t = useT("console");
   const describeError = useDescribeError("account");
   // 人机验证只挡发码：重置那一步已经要验证码，刷不了短信/邮件
   const captcha = useCaptcha(brand.captcha, "send_code");
@@ -44,7 +47,7 @@ export default function ForgotPasswordPage() {
 
   async function reset(e: React.FormEvent) {
     e.preventDefault(); setError(null);
-    if (password !== confirm) { setError("两次输入的新密码不一致"); return; }
+    if (password !== confirm) { setError(t("forgot.mismatch")); return; }
     setBusy(true);
     try { await call({ action: "reset", email, code, newPassword: password }); setDone(true); }
     catch (cause) { setError(describeError(cause)); } finally { setBusy(false); }
@@ -62,41 +65,42 @@ export default function ForgotPasswordPage() {
             )}
           </div>
         </div>
+        <LocaleSwitcher className="ml-auto flex h-9 items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--card)] px-2.5 text-[var(--muted-foreground)] shadow-sm" />
       </header>
       <section className="mx-auto flex w-full max-w-[420px] flex-col px-5 pb-16 pt-6 sm:px-0">
-        <h1 className="text-2xl font-semibold tracking-[-0.02em]">找回密码</h1>
-        <p className="mt-2 text-sm text-[var(--muted-foreground)]">输入注册时绑定的邮箱，我们会发送一封验证码邮件。</p>
+        <h1 className="text-2xl font-semibold tracking-[-0.02em]">{t("forgot.title")}</h1>
+        <p className="mt-2 text-sm text-[var(--muted-foreground)]">{t("forgot.subtitle")}</p>
         {error ? <Alert tone="error" className="mt-4">{error}</Alert> : null}
         {done ? (
           <div className="mt-6 rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 text-sm">
-            密码已重置，请用新密码<a href="/login" className="ml-1 font-medium text-[var(--primary)] hover:underline">登录</a>。
+            {t("forgot.doneBefore")}<a href="/login" className="ml-1 font-medium text-[var(--primary)] hover:underline">{t("forgot.doneLink")}</a>{t("forgot.doneAfter")}
           </div>
         ) : (
           <form onSubmit={(e) => void reset(e)} className="mt-6 space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="email">邮箱</Label>
+              <Label htmlFor="email">{t("forgot.email")}</Label>
               <div className="flex gap-2">
                 <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" className="h-11 bg-[var(--background)] px-3.5" />
                 <Button type="button" variant="outline" onClick={() => void send()} disabled={busy || cooldown > 0 || !email.includes("@") || !captcha.ready} className="h-11 shrink-0">
-                  {cooldown > 0 ? `${cooldown}s` : sent ? "重新发送" : "发送验证码"}
+                  {cooldown > 0 ? `${cooldown}s` : sent ? t("forgot.resend") : t("forgot.send")}
                 </Button>
               </div>
             </div>
             {captcha.widget}
             <div className="space-y-1.5">
-              <Label htmlFor="code">验证码</Label>
-              <Input id="code" value={code} onChange={(e) => setCode(e.target.value)} placeholder="邮件里的 6 位数字" inputMode="numeric" className="h-11 bg-[var(--background)] px-3.5" />
+              <Label htmlFor="code">{t("forgot.code")}</Label>
+              <Input id="code" value={code} onChange={(e) => setCode(e.target.value)} placeholder={t("forgot.codePlaceholder")} inputMode="numeric" className="h-11 bg-[var(--background)] px-3.5" />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="password">新密码（至少 8 位）</Label>
+              <Label htmlFor="password">{t("forgot.newPassword")}</Label>
               <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" className="h-11 bg-[var(--background)] px-3.5" />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="confirm">确认新密码</Label>
+              <Label htmlFor="confirm">{t("forgot.confirm")}</Label>
               <Input id="confirm" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" className="h-11 bg-[var(--background)] px-3.5" />
             </div>
-            <Button type="submit" disabled={busy || !sent || !code || password.length < 8} className="h-11 w-full">{busy ? "提交中…" : "重置密码"}</Button>
-            <p className="text-center text-sm text-[var(--muted-foreground)]">想起来了？<a href="/login" className="font-medium text-[var(--primary)] hover:underline">返回登录</a></p>
+            <Button type="submit" disabled={busy || !sent || !code || password.length < 8} className="h-11 w-full">{busy ? t("forgot.submitting") : t("forgot.submit")}</Button>
+            <p className="text-center text-sm text-[var(--muted-foreground)]">{t("forgot.remembered")}<a href="/login" className="font-medium text-[var(--primary)] hover:underline">{t("forgot.backToLogin")}</a></p>
           </form>
         )}
       </section>

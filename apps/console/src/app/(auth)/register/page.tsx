@@ -6,11 +6,14 @@ import { Alert, Button, Input, Label } from "@neton/application-client-kit";
 import { apiErrorFromEnvelope } from "@neton/application-client-runtime/client";
 import { useDescribeError } from "@neton/application-client-runtime/errors";
 import { useCaptcha } from "@neton/application-client-runtime/captcha-widget";
+import { useT } from "@neton/application-client-runtime/i18n";
 import { BrandMark } from "@/components/brand-mark";
+import { LocaleSwitcher } from "@/components/locale-switcher";
 import { useSiteBrand } from "@/components/site-brand";
 
 export default function RegisterPage() {
   const brand = useSiteBrand();
+  const t = useT("console");
   const describeError = useDescribeError("account");
   const captcha = useCaptcha(brand.captcha, "register");
   const [username, setUsername] = React.useState("");
@@ -62,7 +65,7 @@ export default function RegisterPage() {
       setError(describeError(apiErrorFromEnvelope(body, res.status, res.headers)));
       captcha.reset();
     } catch {
-      setError("无法连接到服务，请稍后重试");
+      setError(t("register.networkError"));
       captcha.reset();
     } finally {
       setPending(false);
@@ -84,9 +87,12 @@ export default function RegisterPage() {
             )}
           </div>
         </div>
-        <button type="button" onClick={toggleTheme} aria-label={darkMode ? "切换到亮色模式" : "切换到暗色模式"} className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--card)] text-[var(--muted-foreground)] shadow-sm transition hover:text-[var(--foreground)]">
-          {darkMode ? <Sun size={15} /> : <Moon size={15} />}
-        </button>
+        <div className="flex items-center gap-2">
+          <LocaleSwitcher />
+          <button type="button" onClick={toggleTheme} aria-label={darkMode ? t("theme.light") : t("theme.dark")} className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--card)] text-[var(--muted-foreground)] shadow-sm transition hover:text-[var(--foreground)]">
+            {darkMode ? <Sun size={15} /> : <Moon size={15} />}
+          </button>
+        </div>
       </header>
 
       <section className="relative z-[1] mx-auto flex min-h-[calc(100vh-132px)] w-full max-w-[1280px] items-center px-5 py-10 sm:px-8">
@@ -99,14 +105,14 @@ export default function RegisterPage() {
                 <Sparkles size={13} className="text-[var(--primary)]" />
                 GET STARTED
               </div>
-              <h1 className="mt-8 max-w-sm text-[30px] font-semibold leading-[1.2] tracking-[-0.035em] sm:text-[34px]">一个 Key，接入所有模型</h1>
-              <p className="mt-4 max-w-sm text-sm leading-7 text-[var(--muted-foreground)]">兼容 OpenAI、Anthropic、Gemini 三种客户端配置方式。注册后即可创建 API Key，按量计费，充值即用。</p>
+              <h1 className="mt-8 max-w-sm text-[30px] font-semibold leading-[1.2] tracking-[-0.035em] sm:text-[34px]">{t("auth.heroTitle")}</h1>
+              <p className="mt-4 max-w-sm text-sm leading-7 text-[var(--muted-foreground)]">{t("register.heroBody")}</p>
             </div>
             <div className="relative mt-10 space-y-1 rounded-xl border border-[var(--border)] bg-[var(--card)]/75 p-2 shadow-sm backdrop-blur">
               {[
-                ["自助 Key", "Create and revoke instantly"],
-                ["透明账单", "Per-request usage and cost"],
-                ["额度充值", "Top up and start calling"],
+                [t("auth.feature1"), "Create and revoke instantly"],
+                [t("auth.feature2"), "Per-request usage and cost"],
+                [t("auth.feature3"), "Top up and start calling"],
               ].map(([label, detail]) => (
                 <div key={label} className="flex items-center gap-3 rounded-xl px-3 py-3">
                   <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--primary-soft)] text-[var(--primary)]"><Check size={14} strokeWidth={2.5} /></span>
@@ -125,46 +131,46 @@ export default function RegisterPage() {
               <div className="mb-8">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--muted)] text-[var(--primary)]"><UserPlus size={18} /></div>
                 <p className="mt-6 text-[10px] font-semibold tracking-[0.17em] text-[var(--primary)]">CREATE ACCOUNT</p>
-                <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em]">注册 {brand.name}</h2>
-                <p className="mt-2 text-xs leading-6 text-[var(--muted-foreground)]">填写账号信息，注册成功后会直接进入控制台。</p>
+                <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em]">{t("register.title", { name: brand.name })}</h2>
+                <p className="mt-2 text-xs leading-6 text-[var(--muted-foreground)]">{t("register.subtitle")}</p>
               </div>
               <form className="space-y-4" onSubmit={submit}>
                 {error && <Alert tone="error">{error}</Alert>}
                 <div className="space-y-2">
-                  <Label htmlFor="username">账号</Label>
-                  <Input id="username" name="username" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="用于登录的用户名" autoComplete="username" autoFocus className="h-11 bg-[var(--background)] px-3.5" />
+                  <Label htmlFor="username">{t("register.username")}</Label>
+                  <Input id="username" name="username" value={username} onChange={(e) => setUsername(e.target.value)} placeholder={t("register.usernamePlaceholder")} autoComplete="username" autoFocus className="h-11 bg-[var(--background)] px-3.5" />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="password">密码</Label>
+                  <Label htmlFor="password">{t("register.password")}</Label>
                   <div className="relative">
-                    <Input id="password" name="password" type={passwordVisible ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="至少 6 位" autoComplete="new-password" className="h-11 bg-[var(--background)] px-3.5 pr-11" />
-                    <button type="button" onClick={() => setPasswordVisible((v) => !v)} className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-[var(--muted-foreground)] transition hover:bg-[var(--muted)] hover:text-[var(--foreground)]" aria-label={passwordVisible ? "隐藏密码" : "显示密码"}>
+                    <Input id="password" name="password" type={passwordVisible ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder={t("register.passwordPlaceholder")} autoComplete="new-password" className="h-11 bg-[var(--background)] px-3.5 pr-11" />
+                    <button type="button" onClick={() => setPasswordVisible((v) => !v)} className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-[var(--muted-foreground)] transition hover:bg-[var(--muted)] hover:text-[var(--foreground)]" aria-label={passwordVisible ? t("auth.hidePassword") : t("auth.showPassword")}>
                       {passwordVisible ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="confirm">确认密码</Label>
-                  <Input id="confirm" name="confirm" type={passwordVisible ? "text" : "password"} value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="再输一次" autoComplete="new-password" className="h-11 bg-[var(--background)] px-3.5" />
-                  {mismatch && <p className="text-[11px] text-red-500">两次输入的密码不一致</p>}
+                  <Label htmlFor="confirm">{t("register.confirm")}</Label>
+                  <Input id="confirm" name="confirm" type={passwordVisible ? "text" : "password"} value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder={t("register.confirmPlaceholder")} autoComplete="new-password" className="h-11 bg-[var(--background)] px-3.5" />
+                  {mismatch && <p className="text-[11px] text-red-500">{t("register.mismatch")}</p>}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="nickname">昵称（可选）</Label>
-                  <Input id="nickname" name="nickname" value={nickname} onChange={(e) => setNickname(e.target.value)} placeholder="在控制台里显示的名字" autoComplete="nickname" className="h-11 bg-[var(--background)] px-3.5" />
+                  <Label htmlFor="nickname">{t("register.nickname")}</Label>
+                  <Input id="nickname" name="nickname" value={nickname} onChange={(e) => setNickname(e.target.value)} placeholder={t("register.nicknamePlaceholder")} autoComplete="nickname" className="h-11 bg-[var(--background)] px-3.5" />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="inviteCode">邀请码（可选）</Label>
-                  <Input id="inviteCode" name="inviteCode" value={inviteCode} onChange={(e) => setInviteCode(e.target.value)} placeholder="有邀请码可获得额度奖励" autoComplete="off" className="h-11 bg-[var(--background)] px-3.5" />
+                  <Label htmlFor="inviteCode">{t("register.inviteCode")}</Label>
+                  <Input id="inviteCode" name="inviteCode" value={inviteCode} onChange={(e) => setInviteCode(e.target.value)} placeholder={t("register.inviteCodePlaceholder")} autoComplete="off" className="h-11 bg-[var(--background)] px-3.5" />
                 </div>
                 {captcha.widget}
                 <Button type="submit" className="group mt-2 h-11 w-full gap-2 text-sm" disabled={!canSubmit}>
-                  {pending ? "正在创建…" : "创建账号"}
+                  {pending ? t("register.submitting") : t("register.submit")}
                   {!pending && <ArrowRight size={15} className="transition-transform group-hover:translate-x-0.5" />}
                 </Button>
               </form>
               <div className="mt-7 flex items-start gap-2.5 border-t border-[var(--border)] pt-5 text-[11px] leading-5 text-[var(--muted-foreground)]">
                 <KeyRound size={15} className="mt-0.5 shrink-0 text-[var(--primary)]" />
-                <span>已有账号？<a href="/login" className="font-medium text-[var(--primary)] hover:underline">直接登录</a> · <a href="/pricing" className="hover:underline">查看模型价格</a></span>
+                <span>{t("register.haveAccount")}<a href="/login" className="font-medium text-[var(--primary)] hover:underline">{t("register.login")}</a> · <a href="/pricing" className="hover:underline">{t("auth.viewPricing")}</a></span>
               </div>
             </div>
           </section>

@@ -6,11 +6,14 @@ import { Alert, Button, Input, Label } from "@neton/application-client-kit";
 import { apiErrorFromEnvelope } from "@neton/application-client-runtime/client";
 import { useDescribeError } from "@neton/application-client-runtime/errors";
 import { useCaptcha } from "@neton/application-client-runtime/captcha-widget";
+import { useT } from "@neton/application-client-runtime/i18n";
 import { BrandMark } from "@/components/brand-mark";
+import { LocaleSwitcher } from "@/components/locale-switcher";
 import { useSiteBrand } from "@/components/site-brand";
 
 export default function LoginPage() {
   const brand = useSiteBrand();
+  const t = useT("console");
   const describeError = useDescribeError("account");
   const captcha = useCaptcha(brand.captcha, "login");
   const [username, setUsername] = React.useState("");
@@ -50,7 +53,7 @@ export default function LoginPage() {
       setError(describeError(apiErrorFromEnvelope(body, res.status, res.headers)));
       captcha.reset();
     } catch {
-      setError("无法连接到管理服务，请稍后重试");
+      setError(t("login.networkError"));
       captcha.reset();
     } finally {
       setPending(false);
@@ -77,7 +80,8 @@ export default function LoginPage() {
             <span className="relative flex h-2 w-2"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-50" /><span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" /></span>
             Identity service operational
           </div>
-          <button type="button" onClick={toggleTheme} aria-label={darkMode ? "切换到亮色模式" : "切换到暗色模式"} className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--card)] text-[var(--muted-foreground)] shadow-sm transition hover:text-[var(--foreground)]">
+          <LocaleSwitcher />
+          <button type="button" onClick={toggleTheme} aria-label={darkMode ? t("theme.light") : t("theme.dark")} className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--card)] text-[var(--muted-foreground)] shadow-sm transition hover:text-[var(--foreground)]">
             {darkMode ? <Sun size={15} /> : <Moon size={15} />}
           </button>
         </div>
@@ -94,15 +98,15 @@ export default function LoginPage() {
                 <Fingerprint size={13} className="text-[var(--primary)]" />
                 DEVELOPER CONSOLE
               </div>
-              <h1 className="mt-8 max-w-sm text-[30px] font-semibold leading-[1.2] tracking-[-0.035em] sm:text-[34px]">一个 Key，接入所有模型</h1>
-              <p className="mt-4 max-w-sm text-sm leading-7 text-[var(--muted-foreground)]">兼容 OpenAI、Anthropic、Gemini 三种客户端配置方式。按量计费，充值即用。</p>
+              <h1 className="mt-8 max-w-sm text-[30px] font-semibold leading-[1.2] tracking-[-0.035em] sm:text-[34px]">{t("auth.heroTitle")}</h1>
+              <p className="mt-4 max-w-sm text-sm leading-7 text-[var(--muted-foreground)]">{t("login.heroBody")}</p>
             </div>
 
             <div className="relative mt-10 space-y-1 rounded-xl border border-[var(--border)] bg-[var(--card)]/75 p-2 shadow-sm backdrop-blur">
               {[
-                ["自助 Key", "Create and revoke instantly"],
-                ["透明账单", "Per-request usage and cost"],
-                ["额度充值", "Top up and start calling"],
+                [t("auth.feature1"), "Create and revoke instantly"],
+                [t("auth.feature2"), "Per-request usage and cost"],
+                [t("auth.feature3"), "Top up and start calling"],
               ].map(([label, detail]) => (
                 <div key={label} className="flex items-center gap-3 rounded-xl px-3 py-3">
                   <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--primary-soft)] text-[var(--primary)]"><Check size={14} strokeWidth={2.5} /></span>
@@ -122,36 +126,36 @@ export default function LoginPage() {
               <div className="mb-8">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--muted)] text-[var(--primary)]"><KeyRound size={18} /></div>
                 <p className="mt-6 text-[10px] font-semibold tracking-[0.17em] text-[var(--primary)]">SIGN IN</p>
-                <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em]">登录 {brand.name}</h2>
-                <p className="mt-2 text-xs leading-6 text-[var(--muted-foreground)]">使用你的账号进入控制台，管理 API Key、查看用量与充值。</p>
+                <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em]">{t("login.title", { name: brand.name })}</h2>
+                <p className="mt-2 text-xs leading-6 text-[var(--muted-foreground)]">{t("login.subtitle")}</p>
               </div>
 
               <form className="space-y-4" onSubmit={submit}>
                 {error && <Alert tone="error">{error}</Alert>}
                 <div className="space-y-2">
-                  <Label htmlFor="username">账号</Label>
-                  <Input id="username" name="username" value={username} onChange={(event) => setUsername(event.target.value)} placeholder="请输入用户名" autoComplete="username" autoFocus className="h-11 bg-[var(--background)] px-3.5" />
+                  <Label htmlFor="username">{t("login.username")}</Label>
+                  <Input id="username" name="username" value={username} onChange={(event) => setUsername(event.target.value)} placeholder={t("login.usernamePlaceholder")} autoComplete="username" autoFocus className="h-11 bg-[var(--background)] px-3.5" />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="password">登录密码</Label>
+                  <Label htmlFor="password">{t("login.password")}</Label>
                   <div className="relative">
-                    <Input id="password" name="password" type={passwordVisible ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="请输入密码" autoComplete="current-password" className="h-11 bg-[var(--background)] px-3.5 pr-11" />
-                    <button type="button" onClick={() => setPasswordVisible((value) => !value)} className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-[var(--muted-foreground)] transition hover:bg-[var(--muted)] hover:text-[var(--foreground)]" aria-label={passwordVisible ? "隐藏密码" : "显示密码"}>
+                    <Input id="password" name="password" type={passwordVisible ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} placeholder={t("login.passwordPlaceholder")} autoComplete="current-password" className="h-11 bg-[var(--background)] px-3.5 pr-11" />
+                    <button type="button" onClick={() => setPasswordVisible((value) => !value)} className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-[var(--muted-foreground)] transition hover:bg-[var(--muted)] hover:text-[var(--foreground)]" aria-label={passwordVisible ? t("auth.hidePassword") : t("auth.showPassword")}>
                       {passwordVisible ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
                   </div>
                 </div>
                 {captcha.widget}
                 <Button type="submit" className="group mt-2 h-11 w-full gap-2 text-sm" disabled={pending || !username || !password || !captcha.ready}>
-                  {pending ? "正在验证…" : "安全登录"}
+                  {pending ? t("login.submitting") : t("login.submit")}
                   {!pending && <ArrowRight size={15} className="transition-transform group-hover:translate-x-0.5" />}
                 </Button>
               </form>
 
               <div className="mt-7 flex items-start gap-2.5 border-t border-[var(--border)] pt-5 text-[11px] leading-5 text-[var(--muted-foreground)]">
                 <ShieldCheck size={15} className="mt-0.5 shrink-0 text-[var(--primary)]" />
-                <span>还没有账号？<a href="/register" className="font-medium text-[var(--primary)] hover:underline">立即注册</a> · <a href="/pricing" className="hover:underline">查看模型价格</a></span>
-                <a href="/forgot-password" className="font-medium text-[var(--muted-foreground)] hover:underline">忘记密码</a>
+                <span>{t("login.noAccount")}<a href="/register" className="font-medium text-[var(--primary)] hover:underline">{t("login.register")}</a> · <a href="/pricing" className="hover:underline">{t("auth.viewPricing")}</a></span>
+                <a href="/forgot-password" className="font-medium text-[var(--muted-foreground)] hover:underline">{t("login.forgotPassword")}</a>
               </div>
             </div>
           </section>

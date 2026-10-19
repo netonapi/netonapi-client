@@ -13,14 +13,17 @@ import type { NavItem } from "@neton/application-client-runtime/menu";
  *
  * icon 取 app-shell.tsx 里 iconMap 的键名。写错不会报错，resolveIcon 会静默回落到 CircleDot ——
  * 所以新增条目时要对着那张表挑，别凭印象写。
+ *
+ * name 写 `console` 命名空间里的词条 key（src/messages.ts 的 `menu.*`），由 workspace-root 按当前语言翻译；
+ * 找不到对应词条时原样显示，所以直接写字面名称也能用。
  */
 export const consoleNav: NavItem[] = [
-  { name: "API Key", path: "/gateway/key", icon: "idcard" },
-  { name: "模型与价格", path: "/gateway/model", icon: "appstore" },
-  { name: "用量与额度", path: "/gateway/usage", icon: "file-text" },
-  { name: "充值与流水", path: "/payment/billing", icon: "pay-circle" },
-  { name: "邀请好友", path: "/member/invite", icon: "team" },
-  { name: "个人资料", path: "/account/profile", icon: "user" },
+  { name: "menu.gatewayKey", path: "/gateway/key", icon: "idcard" },
+  { name: "menu.gatewayModel", path: "/gateway/model", icon: "appstore" },
+  { name: "menu.gatewayUsage", path: "/gateway/usage", icon: "file-text" },
+  { name: "menu.paymentBilling", path: "/payment/billing", icon: "pay-circle" },
+  { name: "menu.memberInvite", path: "/member/invite", icon: "team" },
+  { name: "menu.accountProfile", path: "/account/profile", icon: "user" },
 ];
 
 /**
