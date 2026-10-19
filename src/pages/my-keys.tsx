@@ -3,6 +3,7 @@
 import * as React from "react";
 import { apiFetch, apiWrite } from "@neton/application-client-runtime/client";
 import { useDescribeError } from "@neton/application-client-runtime/errors";
+import { useFormat, useT, type Translate } from "@neton/application-client-runtime/i18n";
 import { useQuery, useQueryClient } from "@neton/application-client-runtime/client-context";
 import { formatDateTime } from "@neton/application-client-runtime/types";
 import {
@@ -23,11 +24,11 @@ interface PublicInfo { apiBase?: string | null; endpoints: { path: string; proto
 
 /** 有效期预设；编辑时多一个「保持不变」。天数按「从现在起」算，到期那天的 23:59:59 失效。 */
 const EXPIRY_PRESETS = [
-  { key: "7", label: "7 天", days: 7 },
-  { key: "30", label: "30 天", days: 30 },
-  { key: "180", label: "半年", days: 180 },
-  { key: "365", label: "1 年", days: 365 },
-  { key: "never", label: "永不过期", days: null },
+  { key: "7", label: "keys.expiry.7d", days: 7 },
+  { key: "30", label: "keys.expiry.30d", days: 30 },
+  { key: "180", label: "keys.expiry.180d", days: 180 },
+  { key: "365", label: "keys.expiry.365d", days: 365 },
+  { key: "never", label: "keys.expiry.never", days: null },
 ] as const;
 type ExpiryChoice = "keep" | (typeof EXPIRY_PRESETS)[number]["key"];
 
@@ -61,19 +62,19 @@ function endOfDayAfter(days: number): number {
 }
 
 /** 表单 → 请求体；返回错误文案或 null。 */
-function toBody(f: TokenForm): { body: Record<string, unknown>; error: string | null } {
+function toBody(f: TokenForm, t: Translate): { body: Record<string, unknown>; error: string | null } {
   const allowedModels = f.modelMode === "all" ? "" : f.models.join(",");
   const body: Record<string, unknown> = { name: f.name.trim(), allowedModels, allowedIps: f.allowedIps.trim() };
-  if (!body.name) return { body, error: "请填写名称" };
-  if (f.modelMode === "specific" && f.models.length === 0) return { body, error: "请至少勾选一个模型，或选择「全部模型」" };
+  if (!body.name) return { body, error: t("keys.err.name_required") };
+  if (f.modelMode === "specific" && f.models.length === 0) return { body, error: t("keys.err.models_required") };
   if (f.budgetUsd.trim()) {
     const v = Number(f.budgetUsd);
-    if (!Number.isFinite(v) || v <= 0) return { body, error: "预算必须是大于 0 的美元数" };
+    if (!Number.isFinite(v) || v <= 0) return { body, error: t("keys.err.budget_invalid") };
     body.quotaBudget = Math.round(v * 1_000_000);
   }
   // 后端更新是整体覆盖：不传 expiresAt 等于清掉有效期，所以「保持不变」要把原值带回去
   if (f.expiry === "keep") {
-    if (f.keepExpiresAt != null && f.keepExpiresAt <= Date.now()) return { body, error: "这个 Key 已过期，请重新选择有效期" };
+    if (f.keepExpiresAt != null && f.keepExpiresAt <= Date.now()) return { body, error: t("keys.err.expired") };
     if (f.keepExpiresAt != null) body.expiresAt = f.keepExpiresAt;
   } else {
     const preset = EXPIRY_PRESETS.find((p) => p.key === f.expiry);
@@ -94,6 +95,7 @@ const chipClass = (on: boolean) =>
 function ModelPicker({ catalog, mode, onMode, value, onChange }: {
   catalog: string[]; mode: "all" | "specific"; onMode: (m: "all" | "specific") => void; value: string[]; onChange: (v: string[]) => void;
 }) {
+  const t = useT("gateway");
   const [query, setQuery] = React.useState("");
   const all = React.useMemo(() => [...new Set([...value.filter((m) => !catalog.includes(m)), ...catalog])], [catalog, value]);
   const shown = all.filter((m) => m.toLowerCase().includes(query.trim().toLowerCase()));
@@ -101,23 +103,23 @@ function ModelPicker({ catalog, mode, onMode, value, onChange }: {
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap gap-2">
-        <button type="button" className={chipClass(mode === "all")} onClick={() => onMode("all")}>全部模型（不限制）</button>
+        <button type="button" className={chipClass(mode === "all")} onClick={() => onMode("all")}>{t("keys.models.all")}</button>
         <button type="button" className={chipClass(mode === "specific")} onClick={() => onMode("specific")}>
-          指定模型{mode === "specific" && value.length ? `（已选 ${value.length}）` : ""}
+          {mode === "specific" && value.length ? t("keys.models.specific_count", { count: value.length }) : t("keys.models.specific")}
         </button>
       </div>
       {mode === "specific" ? (
         <div className="rounded-lg border border-[var(--border)]">
           <div className="border-b border-[var(--border)] p-2">
-            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="搜索模型" />
+            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("keys.models.search")} />
           </div>
           <div className="max-h-56 overflow-y-auto p-1">
-            {shown.length === 0 ? <div className="px-2 py-3 text-xs text-[var(--muted-foreground)]">没有匹配的模型</div> : null}
+            {shown.length === 0 ? <div className="px-2 py-3 text-xs text-[var(--muted-foreground)]">{t("keys.models.no_match")}</div> : null}
             {shown.map((m) => (
               <label key={m} className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-[var(--muted)]">
                 <Checkbox checked={value.includes(m)} onCheckedChange={() => toggle(m)} />
                 <span className="truncate">{m}</span>
-                {!catalog.includes(m) ? <span className="ml-auto text-[10px] text-[var(--muted-foreground)]">不在当前目录</span> : null}
+                {!catalog.includes(m) ? <span className="ml-auto text-[10px] text-[var(--muted-foreground)]">{t("keys.models.not_in_catalog")}</span> : null}
               </label>
             ))}
           </div>
@@ -132,15 +134,16 @@ function ModelPicker({ catalog, mode, onMode, value, onChange }: {
  * 控制台与网关不一定同域。没配就把占位符原样摆出来并让用户去问管理员，别编一个假地址。
  */
 function IntegrationCard({ info, sampleKey }: { info: PublicInfo | null; sampleKey: string }) {
-  const base = info?.apiBase ?? "https://<网关地址>";
+  const t = useT("gateway");
+  const base = info?.apiBase ?? `https://<${t("keys.integration.host_placeholder")}>`;
   const pre: React.CSSProperties = { fontSize: 12, margin: "4px 0 10px", padding: 10, borderRadius: 6, overflowX: "auto", background: "var(--muted, rgba(127,127,127,0.12))" };
   return (
     <div style={{ padding: 12, border: "1px solid var(--border, currentColor)", borderRadius: 8 }}>
-      <p style={{ margin: "0 0 6px", fontWeight: 600 }}>接入方式</p>
+      <p style={{ margin: "0 0 6px", fontWeight: 600 }}>{t("keys.integration.title")}</p>
       {info && !info.apiBase ? (
-        <p style={{ margin: "0 0 8px", fontSize: 12, color: "var(--muted-foreground)" }}>管理员尚未配置对外地址，请向管理员索取网关地址后替换下面的占位符。</p>
+        <p style={{ margin: "0 0 8px", fontSize: 12, color: "var(--muted-foreground)" }}>{t("keys.integration.no_base")}</p>
       ) : null}
-      <p style={{ margin: "6px 0 2px", fontSize: 13 }}>OpenAI SDK：把 base_url 指向本网关，其余不变</p>
+      <p style={{ margin: "6px 0 2px", fontSize: 13 }}>{t("keys.integration.openai")}</p>
       <pre style={pre}>{`from openai import OpenAI
 client = OpenAI(base_url="${base}/v1", api_key="${sampleKey}")`}</pre>
       <p style={{ margin: "6px 0 2px", fontSize: 13 }}>Anthropic SDK</p>
@@ -153,7 +156,7 @@ client = Anthropic(base_url="${base}", api_key="${sampleKey}")`}</pre>
   -d '{"model": "gpt-4o", "messages": [{"role": "user", "content": "hi"}]}'`}</pre>
       {info ? (
         <p style={{ margin: 0, fontSize: 12, color: "var(--muted-foreground)" }}>
-          可用端点：{info.endpoints.map((e) => e.path).join("、")}。Gemini 客户端把 API 地址指向 {base} 即可。
+          {t("keys.integration.endpoints", { endpoints: info.endpoints.map((e) => e.path).join(t("keys.integration.sep")), base })}
         </p>
       ) : null}
     </div>
@@ -163,6 +166,8 @@ client = Anthropic(base_url="${base}", api_key="${sampleKey}")`}</pre>
 /** 我的 API Key。明文只在创建后展示一次——服务端只存哈希，之后谁也取不回。 */
 export default function Page() {
   const describeError = useDescribeError("gateway");
+  const t = useT("gateway");
+  const format = useFormat();
   const [error, setError] = React.useState<string | null>(null);
   const [editing, setEditing] = React.useState<{ id: number | null; form: TokenForm } | null>(null);
   const [busy, setBusy] = React.useState(false);
@@ -185,7 +190,7 @@ export default function Page() {
 
   async function submit() {
     if (!editing) return;
-    const { body, error: e } = toBody(editing.form);
+    const { body, error: e } = toBody(editing.form, t);
     if (e) { setFormError(e); return; }
     setFormError(null); setBusy(true);
     try {
@@ -207,7 +212,7 @@ export default function Page() {
   }
 
   async function remove(row: MyToken) {
-    if (!window.confirm(`删除 Key「${row.name}」？正在使用它的程序会立即收到 401，且不可恢复。`)) return;
+    if (!window.confirm(t("keys.confirm_delete", { name: row.name }))) return;
     setError(null);
     try {
       await apiWrite(`/app/gateway/token/delete/${row.id}`, "DELETE", {});
@@ -216,11 +221,11 @@ export default function Page() {
   }
 
   const actions = (row: MyToken): RowAction[] => [
-    { label: "编辑", onClick: () => openEditor(row.id, toForm(row)) },
+    { label: t("keys.action.edit"), onClick: () => openEditor(row.id, toForm(row)) },
     row.status === 1
-      ? { label: "停用", onClick: () => void setStatus(row, 0) }
-      : { label: "启用", onClick: () => void setStatus(row, 1) },
-    { label: "删除", onClick: () => void remove(row) },
+      ? { label: t("keys.action.disable"), onClick: () => void setStatus(row, 0) }
+      : { label: t("keys.action.enable"), onClick: () => void setStatus(row, 1) },
+    { label: t("keys.action.delete"), onClick: () => void remove(row) },
   ];
 
   function openEditor(id: number | null, form: TokenForm) {
@@ -234,19 +239,19 @@ export default function Page() {
     const parts: string[] = [];
     if (r.rpmLimit != null) parts.push(`RPM ${r.rpmLimit}`);
     if (r.tpmLimit != null) parts.push(`TPM ${r.tpmLimit}`);
-    if (r.concurrencyLimit != null) parts.push(`并发 ${r.concurrencyLimit}`);
-    return parts.length ? parts.join(" · ") : "不限";
+    if (r.concurrencyLimit != null) parts.push(t("keys.limit.concurrency", { n: r.concurrencyLimit }));
+    return parts.length ? parts.join(" · ") : t("keys.unlimited");
   };
 
   const columns: DataColumn<MyToken>[] = [
-    { key: "name", header: "名称", cell: (r) => r.name },
+    { key: "name", header: t("keys.col.name"), cell: (r) => r.name },
     { key: "display", header: "Key", cell: (r) => <code>{r.display}</code> },
-    { key: "quota", header: "已用 / 预算", cell: (r) => `${usd(r.quotaUsed)} / ${r.quotaBudget != null ? usd(r.quotaBudget) : "不限"}` },
-    { key: "models", header: "模型范围", cell: (r) => r.allowedModels ? r.allowedModels : "全部" },
-    { key: "limits", header: "限速（运营设定）", cell: limits },
-    { key: "expiresAt", header: "有效期", cell: (r) => (r.expiresAt ? formatDateTime(r.expiresAt) : "长期") },
-    { key: "status", header: "状态", cell: (r) => <StatusBadge active={r.status === 1 && !expired(r)}>{expired(r) ? "已过期" : r.status === 1 ? "启用" : "停用"}</StatusBadge> },
-    { key: "actions", header: "操作", cell: (row) => <RowActions primary={actions(row)} /> },
+    { key: "quota", header: t("keys.col.quota"), cell: (r) => `${usd(r.quotaUsed)} / ${r.quotaBudget != null ? usd(r.quotaBudget) : t("keys.unlimited")}` },
+    { key: "models", header: t("keys.col.models"), cell: (r) => r.allowedModels ? r.allowedModels : t("keys.models.all_short") },
+    { key: "limits", header: t("keys.col.limits"), cell: limits },
+    { key: "expiresAt", header: t("keys.col.expires"), cell: (r) => (r.expiresAt ? formatDateTime(r.expiresAt) : t("keys.no_expiry")) },
+    { key: "status", header: t("keys.col.status"), cell: (r) => <StatusBadge active={r.status === 1 && !expired(r)}>{expired(r) ? t("keys.status.expired") : r.status === 1 ? t("keys.status.enabled") : t("keys.status.disabled")}</StatusBadge> },
+    { key: "actions", header: t("keys.col.actions"), cell: (row) => <RowActions primary={actions(row)} /> },
   ];
 
   const f = editing?.form ?? EMPTY_FORM;
@@ -256,70 +261,70 @@ export default function Page() {
     <div className="flex flex-col gap-4">
       <PageHeader
         eyebrow="API"
-        title="我的 API Key"
-        description="用这些 Key 调用网关。兼容 OpenAI、Anthropic、Gemini 三种客户端配置方式。"
+        title={t("keys.title")}
+        description={t("keys.description")}
       />
       {error ?? listError ? <Alert tone="error">{error ?? listError}</Alert> : null}
       <div>
-        <Button onClick={() => openEditor(null, EMPTY_FORM)}>创建 Key</Button>
+        <Button onClick={() => openEditor(null, EMPTY_FORM)}>{t("keys.create")}</Button>
       </div>
 
       {issued ? (
         <div style={{ padding: 12, border: "1px solid currentColor", borderRadius: 8 }}>
-          <p><strong>请立即复制保存，这串明文不会再显示：</strong></p>
+          <p><strong>{t("keys.issued.notice")}</strong></p>
           <code style={{ wordBreak: "break-all" }}>{issued.key}</code>
           <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
-            <Button variant="secondary" onClick={() => { void navigator.clipboard?.writeText(issued.key); }}>复制</Button>
-            <Button onClick={() => setIssued(null)}>我已保存</Button>
+            <Button variant="secondary" onClick={() => { void navigator.clipboard?.writeText(issued.key); }}>{t("keys.issued.copy")}</Button>
+            <Button onClick={() => setIssued(null)}>{t("keys.issued.saved")}</Button>
           </div>
         </div>
       ) : null}
 
       <DataTable columns={columns} rows={rows} loading={loading} rowKey={(r) => r.id} />
 
-      <IntegrationCard info={info} sampleKey={issued?.key ?? "sk-你的Key"} />
+      <IntegrationCard info={info} sampleKey={issued?.key ?? `sk-${t("keys.integration.key_placeholder")}`} />
 
       <Drawer
         open={editing !== null}
         onClose={() => setEditing(null)}
-        title={editing?.id == null ? "创建 API Key" : "编辑 API Key"}
+        title={editing?.id == null ? t("keys.drawer.create_title") : t("keys.drawer.edit_title")}
         footer={
           <>
-            <Button variant="outline" onClick={() => setEditing(null)}>取消</Button>
-            <Button onClick={() => void submit()} disabled={busy}>{busy ? "保存中…" : editing?.id == null ? "创建" : "保存"}</Button>
+            <Button variant="outline" onClick={() => setEditing(null)}>{t("keys.drawer.cancel")}</Button>
+            <Button onClick={() => void submit()} disabled={busy}>{busy ? t("keys.drawer.saving") : editing?.id == null ? t("keys.drawer.create") : t("keys.drawer.save")}</Button>
           </>
         }
       >
         <div className="flex flex-col gap-4">
           {formError ? <Alert tone="error">{formError}</Alert> : null}
-          <Field label="名称"><Input value={f.name} onChange={(e) => setF({ name: e.target.value })} placeholder="例如 生产环境 / 本地调试" autoFocus /></Field>
-          <Field label="有效期">
+          <Field label={t("keys.field.name")}><Input value={f.name} onChange={(e) => setF({ name: e.target.value })} placeholder={t("keys.field.name_placeholder")} autoFocus /></Field>
+          <Field label={t("keys.field.expiry")}>
             <div className="flex flex-wrap gap-2">
               {editing?.id != null && f.keepExpiresAt != null ? (
                 <button type="button" className={chipClass(f.expiry === "keep")} onClick={() => setF({ expiry: "keep" })}>
-                  保持不变（到 {new Date(f.keepExpiresAt).toLocaleDateString()}）
+                  {t("keys.expiry.keep", { date: format.date(f.keepExpiresAt) })}
                 </button>
               ) : null}
               {EXPIRY_PRESETS.map((p) => (
-                <button key={p.key} type="button" className={chipClass(f.expiry === p.key)} onClick={() => setF({ expiry: p.key })}>{p.label}</button>
+                <button key={p.key} type="button" className={chipClass(f.expiry === p.key)} onClick={() => setF({ expiry: p.key })}>{t(p.label)}</button>
               ))}
             </div>
           </Field>
-          <Field label="可用模型"><ModelPicker catalog={catalog} mode={f.modelMode} onMode={(modelMode) => setF({ modelMode })} value={f.models} onChange={(models) => setF({ models })} /></Field>
-          <Field label="预算（美元，可选）">
-            <Input value={f.budgetUsd} onChange={(e) => setF({ budgetUsd: e.target.value })} placeholder="留空则不限，仍受账户余额约束" inputMode="decimal" />
+          <Field label={t("keys.field.models")}><ModelPicker catalog={catalog} mode={f.modelMode} onMode={(modelMode) => setF({ modelMode })} value={f.models} onChange={(models) => setF({ models })} /></Field>
+          <Field label={t("keys.field.budget")}>
+            <Input value={f.budgetUsd} onChange={(e) => setF({ budgetUsd: e.target.value })} placeholder={t("keys.field.budget_placeholder")} inputMode="decimal" />
           </Field>
           <div>
             <button type="button" className="text-xs font-medium text-[var(--muted-foreground)] hover:text-[var(--foreground)]" onClick={() => setAdvanced((v) => !v)}>
-              {advanced ? "收起高级设置" : "高级设置（IP 白名单）"}
+              {advanced ? t("keys.advanced.hide") : t("keys.advanced.show")}
             </button>
           </div>
           {advanced ? (
-            <Field label="允许的来源 IP（逗号分隔，留空则不限）">
+            <Field label={t("keys.field.allowed_ips")}>
               <Input value={f.allowedIps} onChange={(e) => setF({ allowedIps: e.target.value })} placeholder="1.2.3.4,10.0.0.0/8" />
             </Field>
           ) : null}
-          <p className="text-xs text-[var(--muted-foreground)]">RPM / TPM / 并发上限由平台设定，如需调整请联系管理员。</p>
+          <p className="text-xs text-[var(--muted-foreground)]">{t("keys.limits_note")}</p>
         </div>
       </Drawer>
     </div>
