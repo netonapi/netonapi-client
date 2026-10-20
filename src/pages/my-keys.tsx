@@ -130,7 +130,7 @@ function ModelPicker({ catalog, mode, onMode, value, onChange }: {
 }
 
 /**
- * 接入说明。地址来自后端的公开信息接口（运维配 NEWGATE_PUBLIC_API_URL），不从浏览器地址栏猜：
+ * 接入说明。地址来自后端的公开信息接口（运维配 NETONAPI_PUBLIC_API_URL），不从浏览器地址栏猜：
  * 控制台与网关不一定同域。没配就把占位符原样摆出来并让用户去问管理员，别编一个假地址。
  */
 function IntegrationCard({ info, sampleKey }: { info: PublicInfo | null; sampleKey: string }) {
