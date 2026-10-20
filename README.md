@@ -1,14 +1,14 @@
 # NetonAPI 用户控制台
 
-NetonAPI 自助侧前端（仓名 `nanogate-client`）：用户在这里领 API Key、看用量与账单、
+NetonAPI 自助侧前端（仓库 `netonapi/netonapi-client`，本地目录同名）：用户在这里领 API Key、看用量与账单、
 用兑换码入账，并查看模型定价。React 19 + Next.js App Router（SSR），pnpm workspace，BFF 代理模式。
-与管理台 [`nanogate-admin`](https://github.com/zoujiaqing/nanogate-admin) 同构、同维护模式，
+与管理台 [`netonapi-frontend`](https://github.com/netonapi/netonapi-frontend) 同构、同维护模式，
 面向的是会员而不是运营人员。
 
 > ⚠️ **在线付款还没接。** 后端那半边是齐的（下单与订单回读都在，harness S32/S33/S53 钉着），
 > 但用户侧没有收银台 —— 额度目前只能靠运营手工发放或兑换码进账。详见「已知缺口」。
 
-后端是 [`nanogate-backend`](https://github.com/zoujiaqing/nanogate-backend)（默认
+后端是 [`netonapi-backend`](https://github.com/netonapi/netonapi-backend)（默认
 `http://localhost:8800`）；部署与密钥说明见 `nanogate` 仓的
 [`DEPLOY.md`](https://github.com/zoujiaqing/nanogate/blob/main/DEPLOY.md)。
 
@@ -22,7 +22,7 @@ NetonAPI 自助侧前端（仓名 `nanogate-client`）：用户在这里领 API 
 
 ## 与管理台的差异
 
-| 维度 | `nanogate-admin`（B 端） | `nanogate-client`（C 端） |
+| 维度 | `netonapi-frontend`（B 端） | `netonapi-client`（C 端） |
 |---|---|---|
 | 账号体系 | `module-system` 管理员，`/admin` 组 | `module-account` 账号，`/app` 组 |
 | 登录端点 | `/admin/system/auth/login` | `/app/auth/login-username` |
@@ -64,8 +64,8 @@ projects/
 ├── Neton/
 │   └── neton-application-client-{member,payment,gateway}/
 └── <workspace>/
-    ├── newgate/          # 后端
-    └── newgate-client/   # ← 本仓
+    ├── netonapi-backend/   # 后端
+    └── netonapi-client/    # ← 本仓
 ```
 
 > ⚠️ **现在从干净 clone 出发装不起来。** `neton-application-client-gateway` 目前是私有仓

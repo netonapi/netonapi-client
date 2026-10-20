@@ -4,6 +4,6 @@ export default [
   "@neton/application-client-account",
   "@neton/application-client-member",
   "@neton/application-client-payment",
-  // 产品模块：NewGate 的 API 网关自助面
+  // 产品模块：NetonAPI 的 API 网关自助面
   "@neton/application-client-gateway",
 ];

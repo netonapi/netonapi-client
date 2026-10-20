@@ -1,6 +1,6 @@
 # NetonAPI 用户控制台镜像。构建约定与管理台镜像完全相同（父目录上下文、复刻布局、只 COPY 显式子路径），
-# 说明见 newgate-front/Dockerfile 头部注释。
-#   docker build -f NewGate/newgate-client/Dockerfile -t nanogate-console:latest .
+# 说明见 netonapi-frontend/Dockerfile 头部注释。
+#   docker build -f NewGate/netonapi-client/Dockerfile -t netonapi-client:latest .
 FROM node:24-alpine
 RUN corepack enable && corepack prepare pnpm@11.20.0 --activate
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -24,31 +24,31 @@ COPY Neton/neton-application-client-payment/tsconfig.json /src/Neton/neton-appli
 COPY Neton/neton-application-client-payment/src           /src/Neton/neton-application-client-payment/src
 
 # ── 本仓（含树内基础包 packages/client-*）──
-WORKDIR /src/NewGate/newgate-client
-COPY NewGate/newgate-client/package.json NewGate/newgate-client/pnpm-workspace.yaml NewGate/newgate-client/pnpm-lock.yaml \
-     NewGate/newgate-client/tsconfig.base.json NewGate/newgate-client/turbo.json ./
-COPY NewGate/newgate-client/scripts ./scripts
-COPY NewGate/newgate-client/packages/client-contract/package.json ./packages/client-contract/package.json
-COPY NewGate/newgate-client/packages/client-contract/src          ./packages/client-contract/src
-COPY NewGate/newgate-client/packages/client-kit/package.json      ./packages/client-kit/package.json
-COPY NewGate/newgate-client/packages/client-kit/src               ./packages/client-kit/src
-COPY NewGate/newgate-client/packages/client-resource/package.json ./packages/client-resource/package.json
-COPY NewGate/newgate-client/packages/client-resource/src          ./packages/client-resource/src
-COPY NewGate/newgate-client/packages/client-runtime/package.json  ./packages/client-runtime/package.json
-COPY NewGate/newgate-client/packages/client-runtime/src           ./packages/client-runtime/src
-COPY NewGate/newgate-client/apps/console/package.json NewGate/newgate-client/apps/console/next.config.ts \
-     NewGate/newgate-client/apps/console/client.modules.ts NewGate/newgate-client/apps/console/postcss.config.mjs \
-     NewGate/newgate-client/apps/console/tsconfig.json ./apps/console/
-COPY NewGate/newgate-client/apps/console/public ./apps/console/public
-COPY NewGate/newgate-client/apps/console/src    ./apps/console/src
+WORKDIR /src/NewGate/netonapi-client
+COPY NewGate/netonapi-client/package.json NewGate/netonapi-client/pnpm-workspace.yaml NewGate/netonapi-client/pnpm-lock.yaml \
+     NewGate/netonapi-client/tsconfig.base.json NewGate/netonapi-client/turbo.json ./
+COPY NewGate/netonapi-client/scripts ./scripts
+COPY NewGate/netonapi-client/packages/client-contract/package.json ./packages/client-contract/package.json
+COPY NewGate/netonapi-client/packages/client-contract/src          ./packages/client-contract/src
+COPY NewGate/netonapi-client/packages/client-kit/package.json      ./packages/client-kit/package.json
+COPY NewGate/netonapi-client/packages/client-kit/src               ./packages/client-kit/src
+COPY NewGate/netonapi-client/packages/client-resource/package.json ./packages/client-resource/package.json
+COPY NewGate/netonapi-client/packages/client-resource/src          ./packages/client-resource/src
+COPY NewGate/netonapi-client/packages/client-runtime/package.json  ./packages/client-runtime/package.json
+COPY NewGate/netonapi-client/packages/client-runtime/src           ./packages/client-runtime/src
+COPY NewGate/netonapi-client/apps/console/package.json NewGate/netonapi-client/apps/console/next.config.ts \
+     NewGate/netonapi-client/apps/console/client.modules.ts NewGate/netonapi-client/apps/console/postcss.config.mjs \
+     NewGate/netonapi-client/apps/console/tsconfig.json ./apps/console/
+COPY NewGate/netonapi-client/apps/console/public ./apps/console/public
+COPY NewGate/netonapi-client/apps/console/src    ./apps/console/src
 
 RUN pnpm install --frozen-lockfile
 RUN pnpm --filter @neton/application-client-console build
 
-WORKDIR /src/NewGate/newgate-client/apps/console
+WORKDIR /src/NewGate/netonapi-client/apps/console
 # 控制台的浏览器请求全部经本进程的 /api/backend 服务端代理转发（cookie → Bearer），
 # 所以只需运行期的内网后端地址，不需要构建期的公网基址、也不涉及 CORS。
-ENV NETON_BACKEND_URL=http://newgate:8800
+ENV NETON_BACKEND_URL=http://netonapi:8800
 ENV PORT=3000
 EXPOSE 3000
 HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=5 \

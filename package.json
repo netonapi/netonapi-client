@@ -1,5 +1,5 @@
 {
-  "name": "newgate-client",
+  "name": "netonapi-client",
   "private": true,
   "scripts": {
     "dev": "pnpm --filter @neton/application-client-console dev",
