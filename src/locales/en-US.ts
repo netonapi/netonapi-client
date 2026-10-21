@@ -114,6 +114,7 @@ const messages: Record<string, string> = {
   "models.col.capabilities": "Capabilities",
   "models.col.input_price": "Input / 1M",
   "models.col.output_price": "Output / 1M",
+  "models.tier.above": "Input over {tokens}: ${price}",
   "models.col.per_request": "Per request",
   "models.col.default_max_output": "Default max output",
   "models.requires_max_tokens": "max_tokens required",

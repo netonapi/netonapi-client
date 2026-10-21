@@ -9,6 +9,7 @@ import { DataTable, PageHeader, type DataColumn } from "@neton/application-clien
 
 interface PublicModel {
   displayName?: string | null;
+  tiers?: { maxPromptTokens: number | null; input: string; output: string }[] | null;
   model: string;
   inputPrice: string; outputPrice: string; cacheReadPrice: string;
   perRequestPrice?: number | null;
@@ -18,6 +19,10 @@ interface PublicModel {
 
 /** 模型广场。未登录也能看——这是拉新入口，只暴露模型名与价格。 */
 export default function Page() {
+  // 长上下文分档：第一档就是表里的价格，后面每档标出「输入超过多少 tokens 时」的价格
+  const tierLines = (r: PublicModel, field: "input" | "output") => (r.tiers ?? []).slice(1).map((tier, i) => (
+    <div key={i} className="text-[11px] text-[var(--muted-foreground)]">{t("models.tier.above", { tokens: ((r.tiers ?? [])[i]?.maxPromptTokens ?? 0).toLocaleString(), price: tier[field] })}</div>
+  ));
   const describeError = useDescribeError("gateway");
   const t = useT("gateway");
   // 能力名 → 词条 models.cap.<name>；未知能力原样显示
@@ -35,11 +40,11 @@ export default function Page() {
     { key: "capabilities", header: t("models.col.capabilities"), cell: (r) => (r.capabilities ?? []).map(capLabel).join(" / ") || "—" },
     {
       key: "inputPrice", header: t("models.col.input_price"),
-      cell: (r) => (r.perRequestPrice != null ? "—" : `$${r.inputPrice}`),
+      cell: (r) => (r.perRequestPrice != null ? "—" : <div>${r.inputPrice}{tierLines(r, "input")}</div>),
     },
     {
       key: "outputPrice", header: t("models.col.output_price"),
-      cell: (r) => (r.perRequestPrice != null ? "—" : `$${r.outputPrice}`),
+      cell: (r) => (r.perRequestPrice != null ? "—" : <div>${r.outputPrice}{tierLines(r, "output")}</div>),
     },
     {
       key: "perRequestPrice", header: t("models.col.per_request"),

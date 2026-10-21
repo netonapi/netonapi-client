@@ -114,6 +114,7 @@ const messages: Record<string, string> = {
   "models.col.capabilities": "能力",
   "models.col.input_price": "输入价 / 1M",
   "models.col.output_price": "输出价 / 1M",
+  "models.tier.above": "输入超过 {tokens}：${price}",
   "models.col.per_request": "按次",
   "models.col.default_max_output": "默认输出上限",
   "models.requires_max_tokens": "需自带 max_tokens",
