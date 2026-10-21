@@ -5,6 +5,7 @@
 import type { LoginMethod, SiteConfig, SitePageDeclaration, SiteRouteInstance } from "@neton/application-client-contract";
 import { assertCacheFitsMediaValidity } from "./cache-profiles";
 import { normalizeConsoleBasePath } from "./next-path";
+import { parsePattern, patternsConflict, patternUnderPrefix, RoutePatternError } from "./route-pattern";
 
 export interface ResolvedSite {
   origin: string;
@@ -22,6 +23,10 @@ export interface ResolvedSite {
   verification: { google?: string; baidu?: string; bing?: string };
   feeds: { site?: { title: string } };
   media: { signedUrlValiditySeconds?: number };
+  /** 控制台在根路径时不需要会话的页面形态（§2.1b）；有门户时恒为空。 */
+  anonymousPaths: string[];
+  /** 真实用户 Web Vitals 上报（§10.7）；null = 不上报。 */
+  vitals: { endpoint: string; sampleRate: number } | null;
 }
 
 export class SiteConfigError extends Error {
@@ -64,6 +69,8 @@ export function resolveSite(config: SiteConfig, env: Record<string, string | und
   try { new Intl.DateTimeFormat("en", { timeZone }); } catch { throw new SiteConfigError(`timeZone is not a valid IANA zone: ${timeZone}`); }
   const media = { signedUrlValiditySeconds: config.media?.signedUrlValiditySeconds };
   assertCacheFitsMediaValidity(media.signedUrlValiditySeconds);
+  const anonymousPaths = resolveAnonymousPaths(config.anonymousPaths ?? [], consoleBasePath);
+  const vitals = resolveVitals(config.vitals);
   return {
     origin,
     consoleBasePath,
@@ -84,7 +91,46 @@ export function resolveSite(config: SiteConfig, env: Record<string, string | und
     verification: { ...(config.verification ?? {}) },
     feeds: { ...(config.feeds ?? {}) },
     media,
+    anonymousPaths,
+    vitals,
   };
+}
+
+function resolveAnonymousPaths(paths: readonly string[], consoleBasePath: string): string[] {
+  if (!paths.length) return [];
+  if (consoleBasePath) {
+    throw new SiteConfigError(`anonymousPaths only applies when the console sits at "/" (everything outside ${consoleBasePath} is already anonymous)`);
+  }
+  const reserved = reservedPrefixes({ consoleBasePath });
+  const seen: string[] = [];
+  for (const path of paths) {
+    try { parsePattern(path); } catch (error) {
+      throw new SiteConfigError(`anonymousPaths: ${error instanceof RoutePatternError ? error.message : String(error)}`);
+    }
+    if (path === "/") throw new SiteConfigError(`anonymousPaths cannot contain "/" (the console home)`);
+    const prefix = reserved.find((p) => patternUnderPrefix(path, p));
+    if (prefix) throw new SiteConfigError(`anonymousPaths: ${path} is under the reserved prefix ${prefix} (already handled by the base)`);
+    const clash = seen.find((other) => patternsConflict(other, path));
+    if (clash) throw new SiteConfigError(`anonymousPaths: ${path} overlaps ${clash}`);
+    seen.push(path);
+  }
+  return seen;
+}
+
+/** 上报地址：站内绝对路径（不以 `//` 开头）或 https 绝对地址。 */
+function resolveVitals(vitals: { endpoint: string; sampleRate: number } | undefined): ResolvedSite["vitals"] {
+  if (!vitals) return null;
+  const { endpoint, sampleRate } = vitals;
+  const sameOrigin = endpoint.startsWith("/") && !endpoint.startsWith("//") && !endpoint.startsWith("/\\");
+  let absolute = false;
+  if (!sameOrigin) {
+    try { absolute = new URL(endpoint).protocol === "https:"; } catch { absolute = false; }
+  }
+  if (!sameOrigin && !absolute) throw new SiteConfigError(`vitals.endpoint must be a same-origin path or an https URL: ${endpoint}`);
+  if (typeof sampleRate !== "number" || !Number.isFinite(sampleRate) || sampleRate < 0 || sampleRate > 1) {
+    throw new SiteConfigError(`vitals.sampleRate must be a number between 0 and 1: ${String(sampleRate)}`);
+  }
+  return { endpoint, sampleRate };
 }
 
 /** 公开路由与 fork 页面不得占用的前缀（§2.2）。 */

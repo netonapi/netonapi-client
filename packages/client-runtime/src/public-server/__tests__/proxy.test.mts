@@ -67,3 +67,22 @@ test("parameterless cacheable routes are always served from their on-demand quer
   );
   assert.equal((await proxy(req("/~q/-"))).status, 404, "the internal address itself stays unreachable");
 });
+
+test("console at the root: anonymousPaths pass without a session, everything else is guarded", async () => {
+  const rootProxy = createPublicProxy({
+    consoleBasePath: "",
+    routes: [],
+    legacy: [],
+    nonConsole: ["/login", "/api"],
+    anonymousPaths: ["/pricing", "/docs/:slug"],
+    goneHtml: "",
+  });
+  assert.equal((await rootProxy(req("/pricing"))).status, 200);
+  assert.equal((await rootProxy(req("/docs/intro"))).status, 200);
+  assert.equal((await rootProxy(req("/login"))).status, 200);
+  const guarded = await rootProxy(req("/pricing/extra"));
+  assert.equal(guarded.status, 307);
+  assert.equal(guarded.headers.get("location"), "https://www.example.com/login?next=%2Fpricing%2Fextra");
+  assert.equal((await rootProxy(req("/docs"))).status, 307);
+  assert.equal((await rootProxy(req("/keys"))).status, 307);
+});

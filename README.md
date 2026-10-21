@@ -86,11 +86,15 @@ pnpm typecheck      # registry + check:locales + 各包 tsc
 pnpm test           # 生成脚本与运行时单测
 pnpm e2e            # 端到端：夹具模块 + 模拟后端 + 真实 next build / next start（见 e2e/run.mts）
 pnpm dev            # NETON_BACKEND_URL 默认 http://localhost:8080
+pnpm budget         # 首屏 JS 预算（postbuild 自动跑）
+pnpm lighthouse <url>…        # Lighthouse 门禁：移动端、devtools 节流、3 次中位数（public-routes §10.6）
+pnpm vitals:report <日志>…    # 真实用户 Web Vitals 的 p75 报告与门禁（§10.7）
 ```
 
 部署配置（环境变量）：`NETON_BACKEND_URL`（浏览器代理与会话校验用的后端地址）、`NETON_BACKEND_INTERNAL_URL`
 （公开页服务端取数，内网直连，缺省回落前者）、`NETON_SITE_ORIGIN`（构建期覆盖站点 origin）、
-`NETON_SITE_REVALIDATE_SECRET`（失效端点与已删除台账的共享密钥，≥ 32 字节）、`NETON_SITE_INDEXNOW_KEY`。
+`NETON_SITE_REVALIDATE_SECRET`（失效端点与已删除台账的共享密钥，≥ 32 字节）、`NETON_SITE_INDEXNOW_KEY`、
+`NETON_SITE_VITALS_LOG`（Web Vitals 收集端点的样本日志文件，缺省标准输出）。
 `next build` 不连后端（public-routes §1a）：所有公开页面按需渲染，构建机不需要能访问后端。
 `next start` 不要以 IP 字面量绑定（`-H 127.0.0.1` / `HOSTNAME=127.0.0.1`）：Next 16 下 proxy 的改写会落空成 404，
 绑 `0.0.0.0` 或 `localhost`，内网隔离交给防火墙 / 反代（public-routes §2.3）。

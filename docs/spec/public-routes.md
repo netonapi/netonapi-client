@@ -1,7 +1,7 @@
 # 公开路由契约：匿名可缓存的 SSR 页面
 
 > 标识：NETON-APP-CLIENT-PUBLIC
-> 日期：2026-10-22 · 状态：**Accepted r3**（C2 补充：密封构建 §1b、部署约束 §2.1a、媒体图片 §10.4、样式表分离 §10.5、底座端到端测试 §15；C1 已实现：契约 1.1.0、注册表生成、渲染管线、SEO 元数据、404 / 410 / 308、缓存档位与标签、失效端点、插槽与卡片、robots / sitemap / RSS 管线、短信登录与 `next` 跳回、控制台前缀；其余分期见 §15）
+> 日期：2026-10-22 · 状态：**Accepted r4**（C3 补充：`ObjectStateBatcher` §9.4、`public.object.bar` §10.2、`anonymousPaths` §2.1b、性能门禁口径 §10.6、真实用户 Web Vitals §10.7；C2 补充：密封构建 §1b、部署约束 §2.1a、媒体图片 §10.4、样式表分离 §10.5、底座端到端测试 §15；C1 已实现：契约 1.1.0、注册表生成、渲染管线、SEO 元数据、404 / 410 / 308、缓存档位与标签、失效端点、插槽与卡片、robots / sitemap / RSS 管线、短信登录与 `next` 跳回、控制台前缀；其余分期见 §15）
 > 范围：`neton-application-client` 底座新增「公开路由」贡献点，让模块贡献匿名、可被 CDN 缓存、可被搜索引擎收录的 SSR 页面；产品 fork 提供门户外壳。client-contract 由 1.0.0 升到 **1.1.0**（只增不改）。
 > 关联：
 > - 后台底座规范 `privchat-docs/spec/07-application/NETON_APPLICATION_FRONT_SPEC.md`（模块契约、构建期注册表、RSC 非契约、贡献点）
@@ -61,6 +61,19 @@
 
 `next start -H 127.0.0.1`（或 standalone 的 `HOSTNAME=127.0.0.1`）时，Next 16.4 把 proxy 看到的 `request.nextUrl` 建成 `http://localhost:<port>`，路由层却按 `http://127.0.0.1:<port>` 判断改写目标是否同源——源不一致，改写被当成外部代理，`~q` 查询段与无参数页面全部落空成 404（底座端到端测试实测；`skipProxyUrlNormalize` 不改变这一点）。Next 服务绑 `0.0.0.0` 或 `localhost`，内网隔离交给防火墙与反代（§8.4 暴露面同理）。底座端到端测试按此启动。
 
+### 2.1b 控制台在根路径的匿名页面（C3）
+
+只有控制台、没有门户的产品（`consoleBasePath = "/"`）里，除登录注册页、接口与 SEO 文件之外的地址都属于控制台、没有会话就跳登录。产品若有几张不需要登录的页面（价格页、帮助页），在站点配置里声明：
+
+```ts
+anonymousPaths: ["/pricing", "/docs/:slug"],
+```
+
+- 写法同路由形态（§4：静态段 + `:name` 整段参数），由 `resolveSite()` 校验：语法、不能是 `/`、不能落在保留前缀（§2.2）下、彼此不能重叠；**有门户（前缀不是 `/`）时配置即失败**——前缀之外本来就全部匿名。
+- 只影响 proxy 的登录拦截：匹配的地址不跳登录。页面文件仍要放在受保护的控制台布局之外（如 `(auth)` 路由组或产品自己的路由组），否则受保护布局照样要求会话。
+- 它们不是公开路由：不进 sitemap，robots.txt 仍是 `Disallow: /`（§11.1）；需要被收录的页面应该做成公开路由（产品就得有控制台前缀）。
+- 取代产品 fork 里手写的 proxy 白名单（NetonAPI 的 `/pricing` 已迁移）：fork 不改 `proxy.ts`。
+
 ### 2.2 保留前缀
 
 模块与 fork 的公开路由不得占用：`consoleBasePath`、`/api`、`/login`、`/register`、`/forgot-password`、`/_next`、`/static`、`/robots.txt`、`/sitemap.xml`、`/sitemaps`、`/rss.xml`、`/favicon.ico`、`/.well-known`、`/indexnow-key.txt`。冲突即构建失败。路径段 `~q` 是内部查询段（§4.3），外部直接访问一律 404。
@@ -92,6 +105,8 @@ export default defineSite({
   verification: { google: "", baidu: "", bing: "" },   // 输出为 <meta name="…-site-verification">
   feeds: { site: { title: "site.feed.title" } },       // 词条 key（命名空间 site）
   media: { signedUrlValiditySeconds: 3600 },            // 开启 CDN 鉴权时填，见 §8.1 与 infra-media §7.3
+  vitals: { endpoint: "/api/site/vitals", sampleRate: 0.1 },  // 真实用户 Web Vitals 上报（§10.7），不填 = 不上报
+  // anonymousPaths: ["/pricing"],                      // 只用于控制台在根路径的产品（§2.1b）
 });
 ```
 
@@ -383,7 +398,30 @@ App Router 的页面只能产出 404（`notFound()`）与重定向，不能产�
 
 ### 9.4 批量状态
 
-一页上常有多个需要「我的状态」的组件（收藏按钮、点赞、评论区里每条评论的我的投票）。运行时提供 `ObjectStateBatcher`（**随 C3/C4 的第一个使用方落地**，C1 未实现）：同一渲染帧内的请求按接口合并成一次（如 interaction 的 `POST state` 一次带上全页的对象），结果按对象分发。模块注册自己的批量加载器，不互相认识。
+一页上常有多个需要「我的状态」的组件（收藏按钮、点赞、评论区里每条评论的我的投票）。运行时的 `ObjectStateBatcher`（C3 实现，`@neton/application-client-runtime/public-state`，客户端）把同一个节拍里的请求按加载器合并成一次，结果按对象分发。模块定义自己的批量加载器，彼此不认识：
+
+```ts
+export const myVotes = defineObjectStateLoader<number>({
+  id: "comment.viewer-state",      // `<模块 id>.<名称>`，全局唯一（重复定义抛错；开发环境的热更新替换）
+  maxBatch: 100,                   // 后端单次上限，更多的拆成几次
+  fallback: 0,                     // 加载前、匿名、结果里没有的 id 都是它
+  requiresSession: true,           // 缺省 true：匿名或会话确认中不请求
+  load: (ids, { signal }) => apiFetch("/app/comment/viewer-state", { method: "POST", body: JSON.stringify({ commentIds: ids }), signal }).then(toRecord),
+});
+const { value, status } = useObjectState(myVotes, String(comment.id));   // status: idle | loading | ready | error
+setObjectState(myVotes, id, 1);          // 乐观更新 / 刚发表的评论；之前在途的旧结果不覆盖它
+invalidateObjectState(myVotes, [id]);    // 重新取（失败后的重试也用它）
+```
+
+| 方面 | 约定 |
+| --- | --- |
+| 合并 | 同一次提交里挂载的组件、以及到下一个宏任务之前的请求，按加载器去重后一次 `load(ids)`；超过 `maxBatch` 拆批 |
+| 水合 | 首帧恒为 `{ value: fallback, status: "idle" }`（服务端 HTML 是匿名态），会话确定后才请求 |
+| 会话 | 结果按会话用户缓存（读 `PublicSessionProvider`）；登录、退出、换账号时清空、中止在途请求，仍在订阅的 id 按新会话重新请求。匿名时不请求，状态 `idle` |
+| 失败 | 不抛出：状态 `error`、值不变；普通的再次请求不重试（不会因为每次重渲染打一次后端），`invalidateObjectState` 重试 |
+| 体积 | 无 React Query 依赖；只有用到它的模块的客户端岛引入 |
+
+底座端到端测试：夹具对象页的服务端插槽里 4 个状态岛——匿名时 0 次请求、服务端 HTML 为 fallback；登录后恰好 1 次合并请求（4 个 id），值按对象分发。
 
 ### 9.5 水合一致性
 
@@ -419,6 +457,7 @@ src/app/(public)/(modules)/…         生成：模块公开路由与模块 feed
 | `public.object.toolbar` | 对象详情页（如 client-content） | `{ ref, summary }` | 收藏（interaction）、分享（content） |
 | `public.object.after` | 对象详情页 | `{ ref, summary }` | 评论区（comment）、相关内容 |
 | `public.object.aside` | 对象详情页 | `{ ref, summary }` | 同栏目最新、作者其他文章 |
+| `public.object.bar` | 对象详情页（C3） | `{ ref, summary }` | 手机吸底条（< 768 px，滚动时收起，与 App 详情页底部工具栏同形）：写评论 + 评论数（comment）、收藏（interaction）、分享（content）。桌面端不显示；详情页负责容器与显隐，贡献方只给按钮 |
 | `console.header.actions` | 底座（控制台） | — | 「回复我的」红点 |
 
 - `summary` 是对象详情里取到的对外信息（`capabilities`、计数、`link.web`），贡献方据 `capability` 过滤，**不能**拿它代替后端的授权检查。
@@ -462,7 +501,7 @@ type PublicMedia = { fileId: string; url: string; mimeType?: string | null; widt
 
 公开页的服务端翻译只 import `src/generated/locales.generated.ts`（模块语言包），控制台页面的加载器在 `modules.generated.ts`：两者合在一个文件时，控制台页面全部成为每个公开路由的客户端引用并进入首屏 JS（itwind C2 实测每个公开路由多出 57 KB）。端到端测试的夹具模块带一个控制台页面，断言它不出现在公开路由的客户端引用清单里。
 
-### 10.6 首屏 JS 预算
+### 10.6 首屏 JS 预算与性能门禁
 
 `next build` 之后由 console 的 `postbuild`（`scripts/check-bundle-budget.mts`，`pnpm budget` 可单独跑）检查，超出即构建失败。计量全部按 gzip，单位 KB = 1024 字节：
 
@@ -485,6 +524,32 @@ type PublicMedia = { fileId: string; url: string; mimeType?: string | null; widt
 | | **合计** | **8.3 kB = 8.1 KiB** |
 
 公开页树里没有 react-query、工作区、kit 或控制台代码。底座缺省（KiB）`shared: 135`（底数之上约 5% 给补丁升级）、`public: 20`。框架底数超限时先查根布局是否多引了东西；确属框架升级，在 `bundle-budget.ts` 里调高并附上新的实测数据。
+
+- **路由名**：去掉路由组；查询变体（`…/~q/[_q]`，§4.3）与裸路由记在同一个名下，取较大者——首页 `/(public)/(site)/~q/[_q]` 就是 `/`，产品按 `routes: { "/": 30 }` 放宽首页（itwind：首页 ≤ 30 KiB，其余公开路由 ≤ 20 KiB）。
+- C3 实测（底座夹具，含 Web Vitals 信标与夹具的状态岛）：公开路由自身 11.0 KB（C2 8.1 KB）；增量是夹具对象页的状态岛（`ObjectStateBatcher` + `apiFetch`，Turbopack 把 `(public)` 下全部客户端岛并进同一个布局块，所以每个公开路由都计入）与信标本体（`web-vitals` 是 load 之后的懒加载块，不计）。
+
+**产品确认的口径（itwind C2 → C3，产品决定）**：首屏 JS 按「框架底数 ≤ 135 KiB + 路由自身 ≤ 20 KiB（首页 ≤ 30 KiB）」，原「文章页 ≤ 100 KB / 首页 ≤ 130 KB」总量目标作废（框架底数本身就超过它，simulate 模式还按 1.6 Mbps 悲观地把这 130 KB 全算进 LCP 依赖）。实验室门禁与真实用户门禁分开：
+
+| 门禁 | 工具 | 口径 | 门槛 |
+| --- | --- | --- | --- |
+| 构建期首屏 JS | `pnpm budget`（postbuild） | gzip KiB | 底数 ≤ 135、路由自身 ≤ 20（产品可按路由放宽） |
+| 实验室回归 | `pnpm lighthouse <url>…`（`scripts/lighthouse.mts`） | 移动端预设、**devtools 实际节流**（慢 4G：延迟 562.5 ms、下行 1.47 Mbps、CPU 4×），每个地址 3 次取各指标中位数 | LCP ≤ 2.0 s、CLS ≤ 0.05、TBT ≤ 200 ms；同时报告性能 / SEO / 无障碍分数；`--out` 写 JSON 汇总，超出退出码 1 |
+| 真实用户（最终判据） | 信标 + 收集端点 + `pnpm vitals:report`（§10.7） | p75，按全站与路由形态 × 设备档 | LCP ≤ 2.5 s、INP ≤ 200 ms、CLS ≤ 0.1（Google「good」） |
+
+Lighthouse 选 devtools 节流的理由：simulate（lantern）由一次不节流的观测推算，把首屏前发起的全部请求都算进 LCP 的依赖链，与浏览器按优先级调度（LCP 图 `fetchpriority=high` 先下）的真实行为不符；devtools 节流让真实浏览器在限速下加载，与真实设备 p75 更接近。simulate 只作趋势参考。Chrome 取 `CHROME_PATH`，否则 Playwright 的 Chromium。底座端到端测试对夹具对象页跑一次（3 次中位数）：LCP 1.28–1.41 s、CLS 0、TBT 63–143 ms、性能 98–100；机器满载时（load average > 80）LCP 实测可到 2.7 s——CPU 4× 降速叠加宿主争用，门禁要在空闲的 CI 机器上跑。
+
+### 10.7 真实用户 Core Web Vitals（C3）
+
+站点配置 `vitals: { endpoint, sampleRate }`（`resolveSite()` 校验：`endpoint` 是站内路径或 https 地址，`sampleRate` 在 0–1）。
+
+| 部分 | 约定 |
+| --- | --- |
+| 信标 | 公开外框里的客户端组件（`@neton/application-client-runtime/public-vitals`，配置了才渲染）：按页面浏览抽样；页面 `load` 之后、浏览器空闲时才动态加载 `web-vitals`（懒加载块，不计首屏 JS）；收集 LCP、INP、CLS、FCP、TTFB，页面隐藏（`visibilitychange` → hidden、`pagehide`）时把这次浏览的指标一次发出——`navigator.sendBeacon`（`text/plain`，跨源收集服务不触发预检），不支持时 `fetch(keepalive, credentials: omit)` |
+| 上报内容 | `{ v: 1, route, pattern, path, nav, device, conn, metrics: [{ name, value, rating, id }] }`：路由 key 与形态取自页面 `<meta name="neton-route">` / `neton-route-pattern`（公开路由渲染管线输出，站点 404 等为 null），`path` 不含查询串与锚点，`device` 按视口宽度分档（< 768 mobile、< 1200 tablet、其余 desktop），`conn` 是 `effectiveType`。**没有 Cookie、没有任何身份**；缓存的 HTML 不变（信标只在客户端运行） |
+| 收集端点 | 底座自带 `POST /api/site/vitals`（`createVitalsHandler`）：形状、枚举、数值范围全量校验（≤ 4 KB，任何一处不合法整份 400 `VITALS_INVALID`）；按来源地址每分钟 60 份（`X-Forwarded-For` 最右一跳，进程内计数，超出 429 `VITALS_RATE_LIMITED`）；每个指标写一行 `{"type":"web-vital",ts,id,name,value,rating,route,pattern,path,nav,device,conn}` 到 `NETON_SITE_VITALS_LOG`（缺省标准输出）；204、`no-store`；不访问后端。`/api/` 本来就在 robots 的 Disallow 里。产品也可以把 `endpoint` 指向自己的后端或日志服务，格式相同 |
+| 报告与门禁 | `pnpm vitals:report <日志>… [--since] [--min-samples 50] [--json] [--allow-insufficient]`：从日志里挑出样本行（允许前面有日志前缀），同一 `id` + 指标只取最后一次（页面再次隐藏时会重报 CLS / INP）；p75 用最近秩法（CrUX 口径，不插值）；分组 = 全站 × 设备档、路由形态 × 设备档；样本数 ≥ `min-samples` 的组才判定；退出码 0 达标、1 超出门槛、2 全站手机或桌面样本不足 |
+
+底座端到端测试：夹具站点 `sampleRate: 1`，浏览器打开对象页、离开后，日志里有该页的 LCP / FCP / TTFB 行（路由、形态、路径、设备档正确，不含会话令牌），`vitals:report` 算出的 p75 与按最近秩手算一致。
 
 ## 11. robots、sitemap、RSS
 
@@ -557,9 +622,10 @@ export default defineSitemap({
 | 期 | 内容 | 状态 |
 | --- | --- | --- |
 | P1 | 契约类型 1.1.0；`consoleBasePath` 与控制台路由生成；`front-workspace` 前缀支持（上游 ecadcb6）；`(public)` 布局、外壳文件、`definePublicRoute` / `definePublicPage`；`ctx.backend`；§6 元数据渲染与 JSON-LD 构造器；状态映射；会话水合、`requireLogin`、`next` 跳回；代理匿名转发；服务端翻译；构建期检查 1–9；短信登录 | **C1 已实现** |
-| P2 | 缓存档位与 CDN 头；标签；失效端点；插槽与卡片渲染器；`ObjectStateBatcher` | C1 已实现（除 `ObjectStateBatcher` → C3/C4 随第一个使用方） |
+| P2 | 缓存档位与 CDN 头；标签；失效端点；插槽与卡片渲染器；`ObjectStateBatcher` | C1 已实现；`ObjectStateBatcher` C3 已实现（§9.4） |
 | P3 | robots / sitemap / RSS 管线；410（proxy + 已删除集合 + 同步客户端）；死链文件；IndexNow 密钥文件；URL 形态回归检查与 legacy 308 | C1 已实现管线；内容的 sitemap / RSS 贡献随 client-content（C2），已删除台账的服务端随 site 模块 S1（C2） |
 | P4（C2） | 密封构建（§1b）；门户 / 控制台样式表分离（§10.5）；媒体图片、过期兜底与签名有效期的运行期交叉校验（§10.4）；底座端到端测试 | **C2 已实现** |
+| P5（C3） | `ObjectStateBatcher`（§9.4）；`public.object.bar` 插槽（§10.2）；控制台在根路径的 `anonymousPaths`（§2.1b）；首屏 JS 路由名合并查询变体；Lighthouse 门禁（devtools 节流）与真实用户 Web Vitals（信标、收集端点、p75 报告，§10.6–10.7） | **C3 已实现** |
 | — | 多实例的共享缓存处理器（`cacheHandlers`）与共享的已删除集合 | 扩容时做；第一版单实例 |
 
 C1 验收（itwind-client 真实运行，Playwright 12/12）：首页 HTML 含完整主内容与元数据、首屏不靠客户端取数（只有一次 `/api/session`）；带与不带 Cookie 的 HTML 逐字节一致；未知频道与不合法参数 404、内部 `~q` 段 404、已删除地址 410（noindex）、恢复后 404；失效端点错签 / 无签 401、错标签 400、正确签名 200 且按 eventId 幂等；robots 与 sitemap 索引、分片可用；`/my/account/profile` 未登录 → `/login?next=…` → 短信验证码登录后回到原页；门户页上账密登录回到原页；`next=//evil.example` 被拒、落在控制台首页。底座自身：生成脚本与运行时单测 87 项。

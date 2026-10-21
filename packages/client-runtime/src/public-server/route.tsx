@@ -204,6 +204,9 @@ export function createPublicRuntime(deps: PublicRuntimeDeps) {
           const RoutePage = route.Page;
           return (
             <>
+              {/* 路由身份（React 提升到 <head>）：真实用户 Web Vitals 按路由形态分组（§10.7），不含任何个人数据 */}
+              <meta name="neton-route" content={meta.key} />
+              <meta name="neton-route-pattern" content={meta.pattern} />
               {seo.pagination?.prev && <link rel="prev" href={seo.pagination.prev} />}
               {seo.pagination?.next && <link rel="next" href={seo.pagination.next} />}
               {(seo.jsonLd ?? []).map((item, i) => (

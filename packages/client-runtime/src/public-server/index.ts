@@ -7,3 +7,4 @@ export * from "./revalidate";
 export * from "./route";
 export * from "./signature";
 export * from "./media-policy";
+export * from "./vitals";

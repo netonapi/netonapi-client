@@ -9,6 +9,7 @@
     "./manifest": "./src/manifest.ts",
     "./public/*": "./src/public/*.tsx",
     "./cards/*": "./src/cards/*.tsx",
+    "./slots/*": "./src/slots/*.tsx",
     "./sitemaps/*": "./src/sitemaps/*.ts",
     "./feeds/*": "./src/feeds/*.ts",
     "./locales/*": "./src/locales/*.ts",

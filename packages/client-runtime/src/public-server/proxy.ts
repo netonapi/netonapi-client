@@ -42,6 +42,8 @@ export interface PublicProxyConfig {
   legacy: { from: string; to: string }[];
   /** 控制台前缀为空时，这些路径不属于控制台（登录注册页、接口、SEO 文件） */
   nonConsole: string[];
+  /** 控制台前缀为空时，站点配置里不需要会话的页面形态（`anonymousPaths`，§2.1b）；缺省空 */
+  anonymousPaths?: string[];
   /** 410 页的完整 HTML（站点语言、noindex），生成期由站点词条写好 */
   goneHtml: string;
 }
@@ -59,13 +61,16 @@ function isInternal(pathname: string): boolean {
 
 export function createPublicProxy(config: PublicProxyConfig) {
   const portal = config.consoleBasePath !== "";
+  const anonymous = config.anonymousPaths ?? [];
 
   return async function publicProxy(request: NextRequest): Promise<NextResponse> {
     const { pathname, search } = request.nextUrl;
 
     if (isInternal(pathname)) return new NextResponse(null, { status: 404 });
 
-    const inConsole = portal ? isConsolePath(pathname, config.consoleBasePath) : !underAny(pathname, config.nonConsole);
+    const inConsole = portal
+      ? isConsolePath(pathname, config.consoleBasePath)
+      : !underAny(pathname, config.nonConsole) && !anonymous.some((pattern) => matchPattern(pattern, pathname));
     if (inConsole) {
       if (!request.cookies.get(SESSION_COOKIE)?.value) {
         return NextResponse.redirect(new URL(loginHref(`${pathname}${search}`, config.consoleBasePath), request.url), 307);

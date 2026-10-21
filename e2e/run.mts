@@ -15,7 +15,8 @@
 import assert from "node:assert/strict";
 import { spawn, type ChildProcess } from "node:child_process";
 import { createHmac } from "node:crypto";
-import { mkdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { createServer as createHttpServer } from "node:http";
 import { createServer } from "node:net";
 import path from "node:path";
@@ -87,6 +88,7 @@ async function main() {
   const BASE = `http://127.0.0.1:${webPort}`;
   let web: ChildProcess | undefined;
   let backend: MockBackend | undefined;
+  let vitalsDir: string | undefined;
   // next build 会按 distDir 改写 next-env.d.ts（入库文件）：结束后原样写回
   const nextEnvFile = path.join(shell, "next-env.d.ts");
   const nextEnv = await readFile(nextEnvFile, "utf8");
@@ -121,11 +123,13 @@ async function main() {
 
     // ---- 启动 ----
     backend = await startMockBackend({ port: backendPort, secret: SECRET });
+    vitalsDir = await mkdtemp(path.join(tmpdir(), "neton-e2e-vitals-"));
+    const vitalsLog = path.join(vitalsDir, "vitals.log");
     // 不以 IP 字面量绑定：Next 16 在 `-H 127.0.0.1` 时把 proxy 的 nextUrl 建成 localhost、路由层却按 127.0.0.1
     // 判断改写是否同源，`~q` 改写全部落空成 404（public-routes §2.3 部署约束）
     web = spawn("pnpm", ["exec", "next", "start", "-p", String(webPort), "-H", "0.0.0.0"], {
       cwd: shell,
-      env: { ...process.env, ...fixtureEnv, NETON_BACKEND_URL: backend.url, NETON_BACKEND_INTERNAL_URL: backend.url, NETON_SITE_REVALIDATE_SECRET: SECRET, NETON_SITE_INDEXNOW_KEY: INDEXNOW_KEY },
+      env: { ...process.env, ...fixtureEnv, NETON_BACKEND_URL: backend.url, NETON_BACKEND_INTERNAL_URL: backend.url, NETON_SITE_REVALIDATE_SECRET: SECRET, NETON_SITE_INDEXNOW_KEY: INDEXNOW_KEY, NETON_SITE_VITALS_LOG: vitalsLog },
       stdio: ["ignore", "pipe", "pipe"],
     });
     const serverLog: string[] = [];
@@ -152,10 +156,11 @@ async function main() {
       return;
     }
     console.log("[e2e] assertions");
-    await suite({ BASE, get, html, backendHits, backend, serverLog });
+    await suite({ BASE, get, html, backendHits, backend, serverLog, vitalsLog });
   } finally {
     web?.kill("SIGTERM");
     await backend?.close();
+    if (vitalsDir) await rm(vitalsDir, { recursive: true, force: true });
     await rm(fixtureModuleTarget, { recursive: true, force: true });
     await writeFile(nextEnvFile, nextEnv);
     if (!process.env.E2E_KEEP) await rm(path.join(shell, DIST), { recursive: true, force: true });
@@ -174,6 +179,7 @@ interface Ctx {
   backendHits(p: string): number;
   backend: MockBackend;
   serverLog: string[];
+  vitalsLog: string;
 }
 
 function revalidate(base: string, body: unknown, options: { secret?: string; t?: number; raw?: string } = {}) {
@@ -459,6 +465,22 @@ async function suite(c: Ctx) {
     assert.ok(loginCss.includes("admin-filter-grid"), "the console stylesheet still serves the auth pages");
   });
 
+  await check("object page: base slot targets render (public.object.after with islands, public.object.bar) and the route identity is in <head>", async () => {
+    const { text } = await c.html("/item/1");
+    assert.match(text, /data-testid="bar-action" data-id="1"/);
+    const stars = [...text.matchAll(/data-testid="star" data-id="(\d+)" data-status="([a-z]+)" data-starred="(true|false)"/g)].map((m) => [m[1], m[2], m[3]]);
+    assert.deepEqual(stars, [["2", "idle", "false"], ["3", "idle", "false"], ["4", "idle", "false"], ["5", "idle", "false"]], "islands render the fallback on the server");
+    assert.match(text, /<meta name="neton-route" content="fixture.item"\/?>/);
+    assert.match(text, /<meta name="neton-route-pattern" content="\/item\/:id"\/?>/);
+  });
+
+  await check("vitals collector: invalid payloads 400, never cached", async () => {
+    const r = await c.get("/api/site/vitals", { method: "POST", body: "{}" });
+    assert.equal(r.status, 400);
+    assert.equal(((await r.json()) as { message: string }).message, "VITALS_INVALID");
+    assert.match(r.headers.get("cache-control") ?? "", /no-store/);
+  });
+
   // ---- 浏览器：登录跳回与图片兜底 ----
   const browser = await chromium.launch();
   try {
@@ -481,6 +503,66 @@ async function suite(c: Ctx) {
         assert.equal(await login(encodeURIComponent(evil)), "/my", `next=${evil}`);
       }
     });
+    await check("object state: anonymous islands never request; after login one batched request fills all of them", async () => {
+      const context = await browser.newContext();
+      const page = await context.newPage();
+      const before = c.backend.stateCalls.length;
+      await page.goto(`${c.BASE}/item/1`);
+      await page.waitForLoadState("networkidle");
+      assert.equal(c.backend.stateCalls.length, before, "anonymous: no state request");
+      assert.deepEqual(await page.$$eval('[data-testid="star"]', (els) => els.map((e) => e.getAttribute("data-status"))), ["idle", "idle", "idle", "idle"]);
+      await page.goto(`${c.BASE}/login?next=${encodeURIComponent("/item/1")}`);
+      await page.fill("#username", USER.username);
+      await page.fill("#password", USER.password);
+      await Promise.all([page.waitForURL((u) => u.pathname === "/item/1", { timeout: 15_000 }), page.click('button[type="submit"]')]);
+      await page.waitForFunction(() => [...document.querySelectorAll('[data-testid="star"]')].every((e) => e.getAttribute("data-status") === "ready"), undefined, { timeout: 10_000 });
+      const calls = c.backend.stateCalls.slice(before);
+      assert.equal(calls.length, 1, `one batched call, got ${JSON.stringify(calls)}`);
+      assert.deepEqual([...calls[0]!].sort(), ["2", "3", "4", "5"]);
+      const starred = await page.$$eval('[data-testid="star"]', (els) => els.map((e) => [e.getAttribute("data-id"), e.getAttribute("data-starred")]));
+      assert.deepEqual(starred, [["2", "false"], ["3", "true"], ["4", "false"], ["5", "true"]]);
+      await context.close();
+    });
+
+    await check("web vitals: the beacon reports after load, the collector logs one line per metric, the report computes p75", async () => {
+      const context = await browser.newContext();
+      const page = await context.newPage();
+      await page.goto(`${c.BASE}/item/5`);
+      await page.waitForLoadState("load");
+      await page.click("h1");
+      await sleep(1500);
+      await page.goto("about:blank");
+      let lines: Record<string, unknown>[] = [];
+      for (let i = 0; i < 40 && !lines.some((l) => l.name === "LCP"); i += 1) {
+        await sleep(250);
+        lines = (await readFile(c.vitalsLog, "utf8").catch(() => "")).split("\n").filter(Boolean).map((l) => JSON.parse(l) as Record<string, unknown>)
+          .filter((l) => l.path === "/item/5");
+      }
+      const names = new Set(lines.map((l) => l.name));
+      for (const n of ["LCP", "FCP", "TTFB"]) assert.ok(names.has(n), `missing ${n} in ${JSON.stringify(lines)}`);
+      const lcp = lines.find((l) => l.name === "LCP")!;
+      assert.equal(lcp.route, "fixture.item");
+      assert.equal(lcp.pattern, "/item/:id");
+      assert.equal(lcp.path, "/item/5");
+      assert.equal(lcp.device, "desktop");
+      assert.equal(lcp.type, "web-vital");
+      assert.ok(!JSON.stringify(lines).includes(USER.token), "no identity");
+      const report = await new Promise<{ code: number; out: string }>((resolve) => {
+        const child = spawn("pnpm", ["--silent", "vitals:report", c.vitalsLog, "--min-samples", "1", "--allow-insufficient", "--json"], { cwd: root, stdio: ["ignore", "pipe", "inherit"] });
+        let out = "";
+        child.stdout!.on("data", (d) => { out += String(d); });
+        child.on("exit", (code) => resolve({ code: code ?? -1, out }));
+      });
+      assert.equal(report.code, 0, report.out);
+      const parsed = JSON.parse(report.out) as { rows: { group: string; device: string; name: string; p75: number; gated: boolean; ok: boolean }[] };
+      const row = parsed.rows.find((r) => r.group === "/item/:id" && r.device === "desktop" && r.name === "LCP");
+      const allLcp = (await readFile(c.vitalsLog, "utf8")).split("\n").filter(Boolean).map((l) => JSON.parse(l) as { name: string; pattern: string; device: string; value: number })
+        .filter((l) => l.name === "LCP" && l.pattern === "/item/:id" && l.device === "desktop").map((l) => l.value).sort((a, b) => a - b);
+      const nearestRank = allLcp[Math.ceil(0.75 * allLcp.length) - 1];
+      assert.ok(row && row.gated && row.ok && row.count === allLcp.length && row.p75 === nearestRank, `${JSON.stringify(row)} vs ${JSON.stringify(allLcp)}`);
+      await context.close();
+    });
+
     await check("media refresh: an expired image is re-fetched once through the refresh endpoint", async () => {
       const context = await browser.newContext();
       const page = await context.newPage();
@@ -497,6 +579,16 @@ async function suite(c: Ctx) {
   } finally {
     await browser.close();
   }
+
+  await check("lighthouse gate (mobile, devtools throttling, median of 3): object page within LCP 2.0 s / CLS 0.05 / TBT 200 ms", async () => {
+    const out = path.join(path.dirname(c.vitalsLog), "lighthouse.json");
+    await run("pnpm", ["--silent", "lighthouse", "--runs", "3", "--out", out, `${c.BASE}/item/1`], {}, root);
+    const report = JSON.parse(await readFile(out, "utf8")) as { throttlingMethod: string; results: { url: string; runs: number; violations: string[]; median: Record<string, number> }[] };
+    assert.equal(report.throttlingMethod, "devtools");
+    assert.equal(report.results[0]!.runs, 3);
+    assert.deepEqual(report.results[0]!.violations, []);
+    console.log(`      lighthouse /item/1: ${JSON.stringify(report.results[0]!.median)}`);
+  });
 
   await check("no server errors were logged", async () => {
     const errors = c.serverLog.join("").split("\n").filter((l) => /\b(Error|TypeError|unhandled)\b/.test(l) && !l.includes("site.media.policy"));

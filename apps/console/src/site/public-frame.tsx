@@ -1,6 +1,7 @@
 import { publicNamespaces } from "@/generated/public.generated";
 import { site } from "@/generated/site.generated";
 import { MEDIA_REFRESH_SCRIPT } from "@neton/application-client-runtime/public";
+import { VitalsBeacon } from "@neton/application-client-runtime/public-vitals";
 import { getSiteBrand } from "@/lib/site-brand";
 import PortalShell from "./portal-shell";
 import { PublicProviders } from "./public-providers";
@@ -27,6 +28,8 @@ export async function PublicFrame({ children }: { children: React.ReactNode }) {
       <PublicProviders locale={site.locale} timeZone={site.timeZone} consoleBasePath={site.consoleBasePath} preloaded={preloaded}>
         <PortalShell brand={brand} locale={site.locale} origin={site.origin} consoleBasePath={site.consoleBasePath}>{children}</PortalShell>
       </PublicProviders>
+      {/* 真实用户 Web Vitals（§10.7）：只在站点配置了 vitals 时渲染；web-vitals 本身在 load 之后懒加载 */}
+      {site.vitals ? <VitalsBeacon endpoint={site.vitals.endpoint} sampleRate={site.vitals.sampleRate} /> : null}
     </>
   );
 }

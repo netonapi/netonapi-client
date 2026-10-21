@@ -26,14 +26,20 @@ export default definePublicRoute<FixtureItem>({
       ],
     };
   },
-  Page({ data: item }) {
+  Page({ data: item, ctx }) {
+    const objectRef = { type: ITEM, id: item.id };
+    const summary = { ref: objectRef, exists: true, visible: true, title: item.title, summary: item.summary, link: { web: `${ctx.site.origin}/item/${item.id}` } };
     return (
-      <article data-testid="item">
-        <h1>{item.title}</h1>
-        <Byline text={item.title} />
-        {item.cover && <MediaImage media={item.cover} alt={item.title} priority displayWidth={720} />}
-        <p data-testid="body">{item.body}</p>
-      </article>
+      <>
+        <article data-testid="item">
+          <h1>{item.title}</h1>
+          <Byline text={item.title} />
+          {item.cover && <MediaImage media={item.cover} alt={item.title} priority displayWidth={720} />}
+          <p data-testid="body">{item.body}</p>
+        </article>
+        <section id="comments">{ctx.renderSlot("public.object.after", { objectRef, summary })}</section>
+        <div data-testid="object-bar">{ctx.renderSlot("public.object.bar", { objectRef, summary })}</div>
+      </>
     );
   },
 });

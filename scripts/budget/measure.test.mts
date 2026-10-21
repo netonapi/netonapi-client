@@ -24,6 +24,8 @@ const bySize = (file: string) => readFileSync(file).length;
 test("route paths drop route groups", () => {
   assert.equal(routeOf("/(public)/(modules)/item/[id]"), "/item/[id]");
   assert.equal(routeOf("/(public)/(site)"), "/");
+  assert.equal(routeOf("/(public)/(site)/~q/[_q]"), "/", "the home page only exists as its query variant");
+  assert.equal(routeOf("/(public)/(modules)/hot/~q/[_q]"), "/hot");
 });
 
 test("route JS is the union of its entries minus the framework chunks", () => {

@@ -35,3 +35,25 @@ test("reserved prefixes and robots follow the console prefix", () => {
   assert.deepEqual(robotsDisallow(site).slice(0, 2), ["/my/", "/my$"]);
   assert.deepEqual(robotsDisallow(resolveSite({ ...base, consoleBasePath: "/" })), ["/"], "a console-only product is not indexed at all");
 });
+
+test("anonymousPaths: console-at-root products only, route-pattern syntax, no reserved prefixes or overlaps", () => {
+  const root = { ...base, consoleBasePath: "/" };
+  assert.deepEqual(resolveSite(root).anonymousPaths, []);
+  assert.deepEqual(resolveSite({ ...root, anonymousPaths: ["/pricing", "/docs/:slug"] }).anonymousPaths, ["/pricing", "/docs/:slug"]);
+  assert.throws(() => resolveSite({ ...base, anonymousPaths: ["/pricing"] }), /only applies when the console sits at "\/"/);
+  assert.throws(() => resolveSite({ ...root, anonymousPaths: ["pricing"] }), /anonymousPaths/);
+  assert.throws(() => resolveSite({ ...root, anonymousPaths: ["/Pricing"] }), /invalid static segment/);
+  assert.throws(() => resolveSite({ ...root, anonymousPaths: ["/"] }), /console home/);
+  assert.throws(() => resolveSite({ ...root, anonymousPaths: ["/api/x"] }), /reserved prefix \/api/);
+  assert.throws(() => resolveSite({ ...root, anonymousPaths: ["/docs/:slug", "/docs/intro"] }), /overlaps/);
+});
+
+test("vitals: same-origin path or https URL, sample rate 0–1", () => {
+  assert.equal(resolveSite(base).vitals, null);
+  assert.deepEqual(resolveSite({ ...base, vitals: { endpoint: "/api/site/vitals", sampleRate: 0.1 } }).vitals, { endpoint: "/api/site/vitals", sampleRate: 0.1 });
+  assert.deepEqual(resolveSite({ ...base, vitals: { endpoint: "https://rum.example.com/v", sampleRate: 1 } }).vitals?.endpoint, "https://rum.example.com/v");
+  assert.throws(() => resolveSite({ ...base, vitals: { endpoint: "//evil.example/v", sampleRate: 1 } }), /vitals.endpoint/);
+  assert.throws(() => resolveSite({ ...base, vitals: { endpoint: "http://rum.example.com/v", sampleRate: 1 } }), /vitals.endpoint/);
+  assert.throws(() => resolveSite({ ...base, vitals: { endpoint: "/api/site/vitals", sampleRate: 1.5 } }), /sampleRate/);
+  assert.throws(() => resolveSite({ ...base, vitals: { endpoint: "/api/site/vitals", sampleRate: Number.NaN } }), /sampleRate/);
+});

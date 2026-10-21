@@ -20,7 +20,9 @@
     "./public": "./src/public/index.ts",
     "./public-server": "./src/public-server/index.ts",
     "./public-proxy": "./src/public-server/proxy.ts",
-    "./public-client": "./src/public-client/session.tsx"
+    "./public-client": "./src/public-client/session.tsx",
+    "./public-state": "./src/public-client/object-state.tsx",
+    "./public-vitals": "./src/public-client/vitals-beacon.tsx"
   },
   "peerDependencies": {
     "@neton/application-front-workspace": "*",
@@ -45,5 +47,8 @@
   "scripts": {
     "test": "tsx --test \"src/**/*.test.mts\"",
     "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "web-vitals": "^6.2.3"
   }
 }

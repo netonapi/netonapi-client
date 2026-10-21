@@ -19,6 +19,10 @@ export default defineFrontModule({
     { key: "fixture.list", pattern: "/list", query: ["cursor", "sort"], entry: "list", cache: "list", indexable: true },
     { key: "fixture.find", pattern: "/find", query: ["q"], entry: "find", cache: "dynamic", indexable: false },
   ],
+  slots: [
+    { target: "public.object.after", id: "fixture.related", entry: "related", rendering: "server", objectTypes: ["fixture.item"] },
+    { target: "public.object.bar", id: "fixture.bar", entry: "bar", rendering: "server", objectTypes: ["fixture.item"] },
+  ],
   cardRenderers: [{ objectType: "fixture.item", entry: "item" }],
   sitemaps: [{ id: "fixture", entry: "items", news: true }],
   feeds: [

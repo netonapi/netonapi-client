@@ -134,6 +134,7 @@ export const BASE_SLOT_TARGETS = [
   "public.object.toolbar",
   "public.object.after",
   "public.object.aside",
+  "public.object.bar",
   "console.header.actions",
 ] as const;
 
@@ -228,6 +229,18 @@ export interface SiteConfig {
   verification?: { google?: string; baidu?: string; bing?: string };
   /** 站点 feed 的标题（站点外壳词条 key，命名空间 `site`）。 */
   feeds?: { site?: { title: string } };
+  /**
+   * 控制台在根路径（consoleBasePath = "/"）的产品里，不需要会话的额外页面（价格页、帮助页……）：
+   * proxy 不对它们做登录拦截。写法同路由形态：静态段 + `:name` 整段参数（如 "/pricing"、"/docs/:slug"）。
+   * 页面本身要放在受保护的控制台布局之外（如 `(auth)` 或产品自己的路由组）。有门户（前缀不是 "/"）时不能用：
+   * 前缀之外本来就全部匿名。不进 sitemap；robots 仍是全站 `Disallow: /`（§11.1）。
+   */
+  anonymousPaths?: string[];
+  /**
+   * 真实用户的 Core Web Vitals 采样上报（§10.7）。不填 = 不上报。
+   * `endpoint`：站内路径（如底座自带的 "/api/site/vitals"）或绝对 https 地址；`sampleRate`：0–1，按页面浏览抽样。
+   */
+  vitals?: { endpoint: string; sampleRate: number };
   media?: {
     /**
      * 后端 infra 的 CDN 地址策略开启鉴权时的签名有效期（秒），与后端配置一致（infra-media §7.3）。

@@ -46,9 +46,13 @@ export interface Verdict {
 
 export const kb = (bytes: number) => bytes / 1024;
 
-/** `/(public)/(modules)/item/[id]/page` → `/item/[id]`。 */
+/**
+ * `/(public)/(modules)/item/[id]` → `/item/[id]`。查询变体（`…/~q/[_q]`，public-routes §4.3）与它的裸路由是
+ * 同一个页面，量出来记在同一个路由名下：首页 `/(public)/(site)/~q/[_q]` → `/`。
+ */
 export function routeOf(appPath: string): string {
   const segments = appPath.split("/").filter((s) => s && !/^\(.*\)$/.test(s));
+  if (segments.at(-2) === "~q" && segments.at(-1) === "[_q]") segments.splice(-2, 2);
   return `/${segments.join("/")}`;
 }
 
@@ -87,6 +91,13 @@ export function measure(distDir: string, gzipSize: (file: string) => number = (f
     const chunks = [...new Set(Object.values(entryJSFiles).flat())].filter((c) => c.endsWith(".js") && !shared.has(c)).sort();
     return [{ route: routeOf(appPath), appPath, public: appPath.startsWith("/(public)/"), chunks, ownBytes: chunks.reduce((n, c) => n + size(c), 0) }];
   });
+  // 裸路由与查询变体落到同一个路由名：取较大的一份（两者首屏 JS 本应相同）
+  const byRoute = new Map<string, RouteMeasure>();
+  for (const r of routes) {
+    const prev = byRoute.get(r.route);
+    if (!prev || r.ownBytes > prev.ownBytes) byRoute.set(r.route, r);
+  }
+  routes.splice(0, routes.length, ...byRoute.values());
   routes.sort((a, b) => a.route.localeCompare(b.route));
   return { shared: { chunks: sharedChunks, bytes: sharedChunks.reduce((n, c) => n + size(c), 0) }, routes };
 }

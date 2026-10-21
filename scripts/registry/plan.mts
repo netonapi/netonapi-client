@@ -485,6 +485,7 @@ export const proxyConfig: PublicProxyConfig = ${JSON.stringify({
     routes: proxyRoutes,
     legacy: legacy.map(({ from, to }) => ({ from, to })),
     nonConsole: ["/login", "/register", "/forgot-password", "/api", "/robots.txt", "/sitemap.xml", "/sitemaps", "/rss.xml", "/indexnow-key.txt", "/favicon.ico", "/.well-known"],
+    anonymousPaths: site.anonymousPaths,
     goneHtml: goneHtml({ locale: site.locale, siteName: site.brand.name, ...input.goneTexts }),
   }, null, 2)};
 `;

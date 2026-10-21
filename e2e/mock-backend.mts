@@ -6,6 +6,7 @@
  * - `/app/infra/media/policy`、`/app/infra/media/url/{fileId}`：媒体地址策略与兜底刷新（infra-media §7.3）
  * - `/platform/site/gone`：已删除台账（site-module §6），**按共享密钥校验签名**——与网页服务的同步客户端互通
  * - `/app/auth/login-username`、`/app/member/user/get`：账密登录与会话校验
+ * - `POST /app/fixture/state`：访问者状态（需要登录，奇数 id 为 true），每次调用的 id 列表记在 `stateCalls`
  * - `/media/{name}`：图片字节（PNG），供浏览器与 Lighthouse 真实加载
  *
  * 每个路径的请求数记在 `hits`，测试据此确认「缓存命中时不打后端」。`POST /__control/item/{id}`（JSON：title / status）
@@ -88,6 +89,8 @@ export interface MockBackend {
   goneRequests: { ok: boolean; query: string }[];
   /** 媒体兜底刷新接口被调用的 fileId */
   refreshed: string[];
+  /** `POST /app/fixture/state`（访问者状态，§9.4）每次调用带的 id 列表 */
+  stateCalls: string[][];
   close(): Promise<void>;
 }
 
@@ -105,6 +108,7 @@ export async function startMockBackend(options: { port: number; secret: string }
   const hits = new Map<string, number>();
   const goneRequests: MockBackend["goneRequests"] = [];
   const refreshed: string[] = [];
+  const stateCalls: string[][] = [];
   const base = `http://127.0.0.1:${options.port}`;
   const images = new Map<string, Buffer>();
 
@@ -200,6 +204,13 @@ export async function startMockBackend(options: { port: number; secret: string }
       return ok(res, { list, nextCursor: null, now: Date.now() });
     }
 
+    if (path === "/app/fixture/state" && req.method === "POST") {
+      if (req.headers.authorization !== `Bearer ${USER.token}`) return fail(res, 401, 10000, "AUTH_REQUIRED");
+      const ids = ((await body(req)).ids as string[] | undefined) ?? [];
+      stateCalls.push(ids);
+      return ok(res, { starred: ids.filter((id) => Number(id) % 2 === 1) });
+    }
+
     if (path === "/app/auth/login-username" && req.method === "POST") {
       const input = await body(req);
       if (input.username !== USER.username || input.password !== USER.password) return fail(res, 401, 10011, "INVALID_CREDENTIALS");
@@ -221,6 +232,7 @@ export async function startMockBackend(options: { port: number; secret: string }
     hits,
     goneRequests,
     refreshed,
+    stateCalls,
     close: () => new Promise<void>((resolve) => { server.closeAllConnections(); server.close(() => resolve()); }),
   };
 }
