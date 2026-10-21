@@ -11,13 +11,14 @@ import { serverI18n } from "./server-i18n";
 export function renderCards(cards: readonly PublicCard[], options: CardRenderOptions | undefined, ctx: PublicSeoContext) {
   const eagerCount = options?.eagerImages ?? 3;
   const priorityFirst = options?.priorityFirst ?? false;
+  const headingLevel = options?.headingLevel ?? 3;
   return (
     <ul className="divide-y divide-[var(--border)]">
       {cards.map((card, index) => {
         const Renderer = cardRegistry[card.ref.type] ?? ObjectSummaryCard;
         return (
           <li key={objectRefKey(card.ref)}>
-            <Renderer card={card} style={options?.styles?.[card.ref.type] ?? "auto"} eager={index < eagerCount || (priorityFirst && index === 0)} priority={priorityFirst && index === 0} ctx={ctx} />
+            <Renderer card={card} style={options?.styles?.[card.ref.type] ?? "auto"} eager={index < eagerCount || (priorityFirst && index === 0)} priority={priorityFirst && index === 0} headingLevel={headingLevel} ctx={ctx} />
           </li>
         );
       })}
@@ -38,17 +39,18 @@ export function cardHref(card: PublicCard, origin: string): { href: string; exte
 }
 
 /** 通用卡片：只用 ObjectSummary（标题、摘要、链接），任何对象类型都能显示。 */
-export async function ObjectSummaryCard({ card, ctx }: Pick<CardRendererProps, "card" | "ctx"> & Partial<CardRendererProps>) {
+export async function ObjectSummaryCard({ card, ctx, headingLevel = 3 }: Pick<CardRendererProps, "card" | "ctx"> & Partial<CardRendererProps>) {
+  const Heading = `h${headingLevel}` as const;
   const target = cardHref(card, ctx.site.origin);
   const t = await serverI18n.getServerT("site", ctx.locale);
   const title = card.summary?.title?.trim() || t("card.untitled");
   return (
     <article className="py-3">
-      <h3 className="text-[15px] font-medium leading-6 text-[var(--foreground)]">
+      <Heading className="text-[15px] font-medium leading-6 text-[var(--foreground)]">
         {target
           ? <a href={target.href} className="hover:text-[var(--primary)]" {...(target.external ? { rel: "noopener nofollow", target: "_blank" } : {})}>{title}</a>
           : title}
-      </h3>
+      </Heading>
       {card.summary?.summary && <p className="mt-1 line-clamp-2 text-sm leading-6 text-[var(--muted-foreground)]">{card.summary.summary}</p>}
     </article>
   );

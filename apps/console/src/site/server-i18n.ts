@@ -1,6 +1,6 @@
 import { createServerI18n } from "@neton/application-client-runtime/public-server";
 import { runtimeCatalogs } from "@neton/application-client-runtime/messages";
-import { localeRegistry } from "@/generated/modules.generated";
+import { localeRegistry } from "@/generated/locales.generated";
 import { site } from "@/generated/site.generated";
 import { consoleCatalogs } from "@/messages";
 import { siteCatalogs } from "./messages";

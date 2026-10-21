@@ -29,7 +29,7 @@ export default definePublicRoute<ListData>({
       <section data-testid="list" data-cursor={data.cursor ?? ""} data-sort={data.sort ?? ""}>
         <h1>{ctx.t("list.title")}</h1>
         {hero && <MediaImage media={hero} alt="" displayWidth={720} aspect="16:9" priority />}
-        {ctx.renderCards(data.page.list, { eagerImages: data.cursor ? 0 : 2, priorityFirst: !data.cursor })}
+        {ctx.renderCards(data.page.list, { eagerImages: data.cursor ? 0 : 2, priorityFirst: !data.cursor, headingLevel: 2 })}
         {data.page.nextCursor && <a rel="next" href={`/list?cursor=${encodeURIComponent(data.page.nextCursor)}`}>{ctx.t("list.next")}</a>}
       </section>
     );

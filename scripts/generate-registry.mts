@@ -11,12 +11,15 @@
  *
  * - src/generated/next.generated.json：next.config 读的构建参数（要转译的模块包）——next.config 不再自己
  *   import 装配清单，换一份清单（夹具）时两边天然一致
+ * - src/generated/public-sources.css：门户样式表要扫描的模块源码目录（src/site/public.css 导入）。按模块包的
+ *   **真实路径**写：pnpm 的 `file:` 依赖在 node_modules 里是符号链接，Tailwind 的 `@source` glob 不跟随
+ *   符号链接，写成 `node_modules/@neton/*\/src` 会静默漏掉模块的全部工具类
  *
  * 环境变量：NETON_SITE_ORIGIN 覆盖 origin；NETON_CLIENT_MODULES_FILE / NETON_SITE_CONFIG_FILE /
  * NETON_PUBLIC_ROUTES_FILE 换一份装配清单 / 站点配置 / URL 形态基线（底座的端到端测试用夹具，e2e/run.mts；
  * 夹具有自己的基线，不碰产品入库的 src/generated/public-routes.json）。
  */
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readdirSync, realpathSync } from "node:fs";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
@@ -51,8 +54,11 @@ try {
 }
 
 const modules: LoadedModule[] = [];
+/** 模块源码目录（manifest 所在目录，真实路径），给门户样式表的 `@source` 用。 */
+const moduleSourceDirs: string[] = [];
 for (const pkg of packages) {
   const manifestPath = shellRequire.resolve(`${pkg}/manifest`);
+  moduleSourceDirs.push(path.dirname(realpathSync(manifestPath)));
   const mod = await import(pathToFileURL(manifestPath).href);
   const manifest: FrontModuleManifest | undefined = mod.default ?? mod.manifest;
   if (!manifest) die([`[registry] ${pkg} does not export a default manifest from ./manifest`]);
@@ -123,4 +129,15 @@ await writeFile(path.join(shellDir, "src/generated/next.generated.json"), `${JSO
 const pageCount = modules.reduce((n, m) => n + m.manifest.pages.length, 0);
 console.log(
   `[registry] ok — ${modules.length} module(s), ${pageCount} console page(s) under ${site.consoleBasePath || "/"}, ${result.routes.length} public route(s)`,
+);
+
+// 门户样式表扫描的模块源码：整个 src，除了控制台页面（src/pages，只在控制台出现）、测试与语言包
+const generatedDir = path.join(shellDir, "src/generated");
+const sourceLines = moduleSourceDirs.flatMap((dir) => {
+  const rel = path.relative(generatedDir, dir).split(path.sep).join("/");
+  return [`@source "${rel}";`, `@source not "${rel}/pages";`, `@source not "${rel}/__tests__";`, `@source not "${rel}/**/*.test.*";`, `@source not "${rel}/locales";`];
+});
+await writeFile(
+  path.join(generatedDir, "public-sources.css"),
+  `/* 自动生成：pnpm registry（scripts/generate-registry.mts）。禁止手改，不入库。门户样式表扫描的模块源码目录（真实路径）。 */\n${sourceLines.join("\n")}\n`,
 );

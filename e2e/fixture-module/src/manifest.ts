@@ -12,7 +12,7 @@ export default defineFrontModule({
     { lang: "zh-CN", entry: "zh-CN" },
     { lang: "en-US", entry: "en-US" },
   ],
-  pages: [],
+  pages: [{ key: "fixture/console/index", path: "/fixture", entry: "console", rendering: "client", title: "Fixture" }],
   publicRoutes: [
     { key: "fixture.front", pattern: "/", entry: "front", cache: "list", indexable: true },
     { key: "fixture.item", pattern: "/item/:id", params: { id: "id" }, entry: "item", cache: "object", indexable: true, goneAware: true },

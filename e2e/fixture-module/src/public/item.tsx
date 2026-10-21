@@ -1,5 +1,6 @@
 import { definePublicRoute, jsonLd, MediaImage, objTag, shareImageUrl } from "@neton/application-client-runtime/public";
 import { ITEM, loadItem, type FixtureItem } from "../data";
+import { Byline } from "../views/byline";
 
 /** `/item/:id`：对象页。状态按后端机器码映射；`redirectTo` → 308；标签 `obj:fixture.item:{id}`。 */
 export default definePublicRoute<FixtureItem>({
@@ -29,6 +30,7 @@ export default definePublicRoute<FixtureItem>({
     return (
       <article data-testid="item">
         <h1>{item.title}</h1>
+        <Byline text={item.title} />
         {item.cover && <MediaImage media={item.cover} alt={item.title} priority displayWidth={720} />}
         <p data-testid="body">{item.body}</p>
       </article>

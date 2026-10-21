@@ -60,7 +60,14 @@ export interface CardRenderOptions {
    * （列表页、首页最新流的第一张；详情页的首图由页面自己给，这里就不要再开）。缺省 false。
    */
   priorityFirst?: boolean;
+  /**
+   * 卡片标题的标题级别：卡片列表直接挂在页面 `h1` 之下（频道页、栏目页）时给 2，挂在 `h2` 区块里（首页楼层）
+   * 用缺省 3——标题层级不跳级（无障碍：屏幕阅读器按层级导航）。
+   */
+  headingLevel?: CardHeadingLevel;
 }
+
+export type CardHeadingLevel = 2 | 3 | 4;
 
 /** 卡片渲染器的入参（public-routes §10.3）。 */
 export interface CardRendererProps {
@@ -71,6 +78,8 @@ export interface CardRendererProps {
   eager: boolean;
   /** 页面的 LCP 图（至多一张）：`<MediaImage priority>` */
   priority: boolean;
+  /** 卡片标题用的标题级别（[CardRenderOptions.headingLevel]，缺省 3） */
+  headingLevel: CardHeadingLevel;
   ctx: PublicSeoContext;
 }
 

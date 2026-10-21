@@ -15,7 +15,7 @@
 import assert from "node:assert/strict";
 import { spawn, type ChildProcess } from "node:child_process";
 import { createHmac } from "node:crypto";
-import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { createServer as createHttpServer } from "node:http";
 import { createServer } from "node:net";
 import path from "node:path";
@@ -93,7 +93,8 @@ async function main() {
   try {
     await rm(fixtureModuleTarget, { recursive: true, force: true });
     await mkdir(path.dirname(fixtureModuleTarget), { recursive: true });
-    await cp(path.join(here, "fixture-module"), fixtureModuleTarget, { recursive: true });
+    // 与 pnpm 的 `file:` 依赖一样以符号链接装入：样式扫描、转译、解析都要经得起符号链接（产品的模块都是这样装的）
+    await symlink(path.join(here, "fixture-module"), fixtureModuleTarget, "dir");
 
     // ---- 构建：后端是绊线 ----
     console.log("[e2e] building the fixture site (backend unreachable by design)…");
@@ -110,6 +111,12 @@ async function main() {
     // postbuild 已经卡过一次；这里再跑一遍让预算进结果清单（public-routes §10.6）
     await check("first-load JS within the bundle budget", async () => {
       await run("pnpm", ["run", "budget"], fixtureEnv, root);
+    });
+
+    await check("public routes reference no console pages (locale and page registries are separate files)", async () => {
+      const manifest = path.join(shell, DIST, "server/app/(public)/(modules)/item/[id]/page_client-reference-manifest.js");
+      const text = await readFile(manifest, "utf8");
+      assert.doesNotMatch(text, /application-client-e2e-fixture[^"]*\/pages\//, "a console page leaked into a public route's client references");
     });
 
     // ---- 启动 ----
@@ -268,6 +275,9 @@ async function suite(c: Ctx) {
     assert.match(card("2"), /loading="eager"/);
     assert.doesNotMatch(card("2"), /fetchpriority/i);
     assert.match(card("3"), /loading="lazy"/);
+    // 列表直接挂在 h1 之下：卡片标题用列表给的 h2，不跳级；首页（缺省）是 h3
+    assert.match(text, /<article data-testid="card"[^>]*>(?:<img[^>]*>)?<h2>/);
+    assert.match((await c.html("/")).text, /<article data-testid="card"[^>]*>(?:<img[^>]*>)?<h3>/);
   });
 
   await check("status: unknown id 404, withdrawn 404 noindex, invalid param 404 without a backend call", async () => {
@@ -440,6 +450,8 @@ async function suite(c: Ctx) {
     const css = await (await c.get(sheets[0]!)).text();
     assert.ok(css.length < 40_000, `portal CSS is ${css.length} bytes`);
     assert.ok(!css.includes("admin-filter-grid") && !css.includes("front-page-enter"), "console rules leaked into the portal stylesheet");
+    assert.ok(css.includes("--fixture-public-view"), "a module's public component outside public/cards/slots lost its utility classes");
+    assert.ok(!css.includes("--fixture-console-page"), "a module's console page leaked utility classes into the portal stylesheet");
     assert.doesNotMatch(text, /fonts\.googleapis|\.woff2?/, "no web fonts");
     const login = await c.html("/login");
     const loginSheets = [...login.text.matchAll(/<link rel="stylesheet" href="([^"]+)"/g)].map((m) => m[1]!);

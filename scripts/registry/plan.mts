@@ -449,14 +449,20 @@ export function plan(input: PlanInput): PlanOutput {
   const pageEntries = modules.flatMap(({ pkg, manifest }) =>
     manifest.pages.map((p) => `  ${JSON.stringify(p.key)}: () => import(${JSON.stringify(`${pkg}/pages/${p.entry}`)}),`));
   files["src/generated/modules.generated.ts"] = `${HEADER}import type { FrontModuleManifest } from "@neton/application-client-contract";
-import type { LocaleRegistry } from "@neton/application-client-runtime/i18n";
 import type * as React from "react";
 
 export const installedModules: FrontModuleManifest[] = ${JSON.stringify(modules.map((m) => m.manifest), null, 2)};
 
+/** 控制台页面：只给控制台用。公开页的服务端代码不得 import 本文件（页面入口会成为公开路由的客户端引用）。 */
 export const pageRegistry: Record<string, () => Promise<{ default: React.ComponentType }>> = {
 ${pageEntries.join("\n")}
 };
+
+export { localeRegistry } from "./locales.generated";
+`;
+
+  // 语言包单独成文件：公开页的服务端翻译只 import 它，不把控制台页面拖进公开路由的客户端引用清单（首屏 JS 预算，public-routes §10.6）
+  files["src/generated/locales.generated.ts"] = `${HEADER}import type { LocaleRegistry } from "@neton/application-client-runtime/i18n";
 
 /** 模块语言包：命名空间（模块 id）→ 语言 → loader。随模块懒加载。 */
 export const localeRegistry: LocaleRegistry = {

@@ -11,6 +11,7 @@
     "./cards/*": "./src/cards/*.tsx",
     "./sitemaps/*": "./src/sitemaps/*.ts",
     "./feeds/*": "./src/feeds/*.ts",
-    "./locales/*": "./src/locales/*.ts"
+    "./locales/*": "./src/locales/*.ts",
+    "./pages/*": "./src/pages/*.tsx"
   }
 }

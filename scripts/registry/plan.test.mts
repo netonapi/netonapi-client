@@ -133,3 +133,20 @@ test("module feeds get their own route handler", () => {
   assert.match(route, /await connection\(\);/);
   assert.match(route, /\(await context\.params\) \?\? \{\}/);
 });
+
+test("locale loaders live apart from console page loaders, so public server code never references console pages", () => {
+  const account: FrontModuleManifest = {
+    id: "account",
+    contractVersion: "1.0.0",
+    locales: [{ lang: "zh-CN", entry: "zh-CN" }],
+    pages: [{ key: "account/profile/index", path: "/account/profile", entry: "profile", rendering: "client", title: "Profile" }],
+  };
+  const out = plan(input({ modules: [{ pkg: "@neton/application-client-filter", manifest: filter }, { pkg: "@neton/application-client-account", manifest: account }] }));
+  assert.deepEqual(out.errors, []);
+  const locales = out.files["src/generated/locales.generated.ts"]!;
+  assert.match(locales, /"account": \{\n    "zh-CN": \(\) => import\("@neton\/application-client-account\/locales\/zh-CN"\)/);
+  assert.doesNotMatch(locales, /\/pages\//);
+  const modules = out.files["src/generated/modules.generated.ts"]!;
+  assert.match(modules, /import\("@neton\/application-client-account\/pages\/profile"\)/);
+  assert.match(modules, /export \{ localeRegistry \} from "\.\/locales\.generated";/);
+});

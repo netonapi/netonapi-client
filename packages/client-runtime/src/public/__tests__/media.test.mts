@@ -19,11 +19,12 @@ const variants = Object.fromEntries([180, 360, 720, 1080, 1440].map((w) => [`w${
 const signed: PublicMedia = { fileId: "file_a", url: "https://cdn.example.com/a.jpg?sign=x", width: 1600, height: 900, variants: { ...variants, og: "https://cdn.example.com/a.jpg?og&sign=x" } };
 const plain: PublicMedia = { fileId: "file_b", url: "https://cdn.example.com/b.png" };
 
-test("the default loader picks the smallest width ≥ 2× the display width and lists every width in srcset", () => {
+test("the default loader picks the smallest width ≥ 2× the display width and lists only the widths that image can use", () => {
   const out = defaultMediaLoader({ media: signed, displayWidth: 180 });
   assert.equal(out.src, variants.w360);
   assert.equal(out.variant, "w360");
-  assert.equal(out.srcSet, [180, 360, 720, 1080, 1440].map((w) => `${variants[`w${w}`]} ${w}w`).join(", "));
+  assert.equal(out.srcSet, [180, 360].map((w) => `${variants[`w${w}`]} ${w}w`).join(", "), "a 180-wide thumbnail needs 1× and 2× only");
+  assert.equal(defaultMediaLoader({ media: signed, displayWidth: 720 }).srcSet, [360, 720, 1080, 1440].map((w) => `${variants[`w${w}`]} ${w}w`).join(", "), "body images keep the narrow-screen widths");
   assert.equal(defaultMediaLoader({ media: signed, displayWidth: 1200 }).src, variants.w1440, "falls back to the largest width");
   assert.deepEqual(defaultMediaLoader({ media: plain, displayWidth: 720 }), { src: plain.url });
 });
@@ -125,4 +126,28 @@ test("the refresh script retries each image once and swaps in the fresh address"
   assert.equal(img.src, "fresh");
   assert.equal(attrs.has("srcset"), false);
   assert.equal(attrs.has("sizes"), false);
+});
+
+test("relative backend addresses (CDN strategy none) go through the portal's backend proxy", () => {
+  const relay: PublicMedia = { fileId: "file_r", url: "/app/infra/file/get/file_r?exp=1&sig=ab", width: 800, height: 600 };
+  const attrs = mediaImageAttributes({ media: relay, alt: "" }, defaultMediaLoader);
+  assert.equal(attrs.src, "/api/backend/app/infra/file/get/file_r?exp=1&sig=ab");
+  assert.equal(shareImageUrl(relay).url, "/api/backend/app/infra/file/get/file_r?exp=1&sig=ab");
+  const withVariants: PublicMedia = { fileId: "file_v", url: "/app/x", variants: { w180: "/app/x?w=180", w360: "https://cdn.example.com/x?w=360" } };
+  const v = mediaImageAttributes({ media: withVariants, alt: "", displayWidth: 180 }, defaultMediaLoader);
+  assert.equal(v.srcSet, "/api/backend/app/x?w=180 180w, https://cdn.example.com/x?w=360 360w");
+  assert.equal(mediaImageAttributes({ media: plain, alt: "" }, defaultMediaLoader).src, plain.url, "absolute addresses are untouched");
+});
+
+test("the refresh script routes a relative fresh address through the backend proxy", async () => {
+  type Listener = (e: { target: unknown }) => void;
+  let listener: Listener | undefined;
+  const attrs = new Map<string, string>([["data-neton-media", "file_r"]]);
+  const img = { tagName: "IMG", src: "old", getAttribute: (n: string) => attrs.get(n) ?? null, hasAttribute: (n: string) => attrs.has(n), setAttribute: (n: string, v: string) => attrs.set(n, v), removeAttribute: (n: string) => attrs.delete(n) };
+  const document = { addEventListener: (_: string, fn: Listener) => { listener = fn; } };
+  const fetch = async () => ({ ok: true, json: async () => ({ code: 0, data: { url: "/app/infra/file/get/file_r?exp=2&sig=cd" } }) });
+  new Function("document", "fetch", MEDIA_REFRESH_SCRIPT)(document, fetch);
+  listener!({ target: img });
+  await new Promise((r) => setTimeout(r, 10));
+  assert.equal(img.src, "/api/backend/app/infra/file/get/file_r?exp=2&sig=cd");
 });
