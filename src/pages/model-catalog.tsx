@@ -8,6 +8,7 @@ import { useQuery } from "@neton/application-client-runtime/client-context";
 import { DataTable, PageHeader, type DataColumn } from "@neton/application-client-kit";
 
 interface PublicModel {
+  displayName?: string | null;
   model: string;
   inputPrice: string; outputPrice: string; cacheReadPrice: string;
   perRequestPrice?: number | null;
@@ -28,7 +29,9 @@ export default function Page() {
   const error = query.error ? describeError(query.error) : null;
 
   const columns: DataColumn<PublicModel>[] = [
-    { key: "model", header: t("models.col.model"), cell: (r) => r.model },
+    { key: "model", header: t("models.col.model"), cell: (r) => r.displayName
+      ? <div><div className="font-medium">{r.displayName}</div><code className="text-[11px] text-[var(--muted-foreground)]">{r.model}</code></div>
+      : r.model },
     { key: "capabilities", header: t("models.col.capabilities"), cell: (r) => (r.capabilities ?? []).map(capLabel).join(" / ") || "—" },
     {
       key: "inputPrice", header: t("models.col.input_price"),
