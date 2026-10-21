@@ -6,6 +6,7 @@ import { LocaleSwitcher } from "@/components/locale-switcher";
 import { useSiteBrand } from "@/components/site-brand";
 
 export interface PublicModel {
+  displayName?: string | null;
   model: string;
   inputPrice: string;
   outputPrice: string;
@@ -67,7 +68,9 @@ export function PricingView({ models }: { models: PublicModel[] | null }) {
                   const perRequest = m.perRequestPrice != null;
                   return (
                     <tr key={m.model} className="border-b border-[var(--border)] last:border-0">
-                      <td className="px-4 py-3 font-mono text-[13px]">{m.model}</td>
+                      <td className="px-4 py-3">{m.displayName
+                        ? <><div className="text-[13px] font-medium">{m.displayName}</div><code className="text-[11px] text-[var(--muted-foreground)]">{m.model}</code></>
+                        : <span className="font-mono text-[13px]">{m.model}</span>}</td>
                       <td className="px-4 py-3 text-xs text-[var(--muted-foreground)]">{(m.capabilities ?? []).map(capability).join(" · ") || "—"}</td>
                       <td className="px-4 py-3 text-right tabular-nums">{perRequest ? "—" : usd(m.inputPrice)}</td>
                       <td className="px-4 py-3 text-right tabular-nums">{perRequest ? "—" : usd(m.outputPrice)}</td>
