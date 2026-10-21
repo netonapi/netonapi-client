@@ -44,7 +44,7 @@ function homePage(title: string): WorkspacePage {
  * 页签标题取侧栏名（consoleNav），其次 manifest 的 `title`，最后才是路径末段；导航是产品自己的静态
  * [consoleNav]。
  */
-export function WorkspaceRoot({ user }: { user: SessionUser }) {
+export function WorkspaceRoot({ user, basePath }: { user: SessionUser; basePath: string }) {
   const t = useT("console");
   const labels = React.useMemo<WorkspaceLabels>(() => ({
     loading: t("workspace.loading"),
@@ -72,7 +72,8 @@ export function WorkspaceRoot({ user }: { user: SessionUser }) {
 
   const [store] = React.useState(() => new WorkspaceStore({
     pages,
-    host: createBrowserHistoryHost(),
+    // 控制台挂在 consoleBasePath 下（门户产品如 /my）；工作区内部地址不带前缀
+    host: createBrowserHistoryHost({ basePath }),
     homeHref: "/",
     pinHome: true,
     // 按身份域 + 用户隔离：换人登录不会恢复出上一个人的页签（评审 R19）。

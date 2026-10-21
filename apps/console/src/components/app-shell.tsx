@@ -348,7 +348,7 @@ function PageTabs() {
           <List size={15} />
         </button>
         {tabMenuOpen && <><button type="button" aria-label={t("tabs.closeList")} className="fixed inset-0 z-[80] cursor-default" onClick={() => setTabMenuOpen(false)} /><div className="absolute right-0 top-9 z-[90] w-64 overflow-hidden rounded-xl border border-[var(--border-strong)] bg-[var(--popover)] p-1.5 shadow-[var(--shadow-md)]">
-          <div className="flex items-center justify-between px-2 py-2"><span className="text-[10px] font-semibold tracking-[0.12em] text-[var(--muted-foreground)]">OPEN WORKSPACES</span><span className="text-[10px] text-[var(--muted-foreground)]">{instances.length}</span></div>
+          <div className="flex items-center justify-between px-2 py-2"><span className="text-[10px] font-semibold tracking-[0.12em] text-[var(--muted-foreground)]">{t("tabs.openWorkspaces")}</span><span className="text-[10px] text-[var(--muted-foreground)]">{instances.length}</span></div>
           <div className="max-h-72 space-y-0.5 overflow-y-auto">{instances.map((instance) => renderTab(instance, true))}</div>
         </div></>}
       </div>

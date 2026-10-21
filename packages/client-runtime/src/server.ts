@@ -1,6 +1,8 @@
 /** 仅限 server 侧（RSC / Route Handler）使用。 */
+import { cookies } from "next/headers";
+import { unstable_rethrow } from "next/navigation";
 import { cache } from "react";
-import type { Envelope, MemberProfile } from "./types";
+import type { Envelope, MemberLoginResponse, MemberProfile } from "./types";
 
 export { forwardedClientHeaders } from "./forwarded";
 
@@ -51,6 +53,8 @@ export async function backendJson<T>(
       cache: "no-store",
     });
   } catch (e) {
+    // Next 的控制流错误（预渲染结束时挂起的请求被取消、动态用法中断）原样抛回框架，不当成后端不可达
+    unstable_rethrow(e);
     console.error(`[backend] ${path} unreachable: ${String(e)}`);
     return { code: 3, message: "BACKEND_UNREACHABLE" };
   }
@@ -70,3 +74,26 @@ export async function backendJson<T>(
 export const getMemberProfile = cache(async (token: string) =>
   backendJson<MemberProfile>("/app/member/user/get", token),
 );
+
+/** 网页端登录请求带的设备信息（后端按它绑定 token 的 device claim）。 */
+export const WEB_DEVICE = { platform: "web" } as const;
+
+/**
+ * 登录 / 注册成功后建立会话：HttpOnly、SameSite=Lax、path=/ 的会话 Cookie，门户与控制台共用
+ * （public-routes §9.1）。有效期取后端 token 的 expiresIn（至少 60 秒，缺省 8 小时）。
+ */
+export async function establishSession(login: MemberLoginResponse): Promise<void> {
+  const maxAge = Math.max(60, Math.floor(login.expiresIn) || 8 * 3600);
+  (await cookies()).set(SESSION_COOKIE, login.accessToken, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge,
+  });
+}
+
+/** 后端失败信封原样透传给浏览器（机器码 + 字段错误），页面经 useDescribeError 翻译。 */
+export function envelopeFailure(res: Envelope<unknown>, status: number): Response {
+  return Response.json({ code: res.code || 4, message: res.message || "INVALID_RESPONSE", errors: res.errors }, { status });
+}

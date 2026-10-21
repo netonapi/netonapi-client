@@ -1,12 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { I18nProvider, i18nConfigFromEnv } from "@neton/application-client-runtime/i18n";
+import { I18nProvider, type I18nConfig } from "@neton/application-client-runtime/i18n";
 import { runtimeCatalogs } from "@neton/application-client-runtime/messages";
 import { localeRegistry } from "@/generated/modules.generated";
+import { site } from "@/generated/site.generated";
 import { consoleCatalogs } from "@/messages";
 
-const config = i18nConfigFromEnv();
+/** 控制台与登录注册页可选的语言 = 站点配置的 locales（与门户同一份来源）；时区跟随浏览器。 */
+const config: I18nConfig = { locales: site.supportedLocales, defaultLocale: site.locale };
 const catalogs = { ...runtimeCatalogs, ...consoleCatalogs };
 
 /**

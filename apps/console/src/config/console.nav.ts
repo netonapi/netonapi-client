@@ -32,7 +32,7 @@ export const consoleNav: NavItem[] = [
  * 所以新增一个只从页面内跳转的页面时，要在这里写明它从哪进。
  */
 export const consoleSubPages: Array<{ path: string; from: string }> = [
-  { path: "/account/password", from: "右上角个人菜单「修改密码」、个人资料 → 登录密码" },
-  { path: "/account/email", from: "个人资料 → 邮箱「绑定 / 修改」" },
-  { path: "/account/mobile", from: "个人资料 → 手机号「绑定 / 修改」" },
+  { path: "/account/password", from: "右上角个人菜单「修改密码」、个人资料 → 登录密码" }, // i18n-exempt: 入口说明给 harness 与开发者看，不上界面
+  { path: "/account/email", from: "个人资料 → 邮箱「绑定 / 修改」" }, // i18n-exempt: 入口说明给 harness 与开发者看，不上界面
+  { path: "/account/mobile", from: "个人资料 → 手机号「绑定 / 修改」" }, // i18n-exempt: 入口说明给 harness 与开发者看，不上界面
 ];

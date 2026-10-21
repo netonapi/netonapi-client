@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "routes": {
+    "fixture.find": "/find",
+    "fixture.front": "/",
+    "fixture.item": "/item/:id",
+    "fixture.list": "/list"
+  }
+}

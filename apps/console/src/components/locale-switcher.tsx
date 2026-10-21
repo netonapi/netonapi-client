@@ -5,7 +5,7 @@ import { Languages } from "lucide-react";
 import { useLocale, useT } from "@neton/application-client-runtime/i18n";
 
 /** 语言名用各自语言书写，切换前后都认得出来。 */
-const LANGUAGE_NAMES: Record<string, string> = { "zh-CN": "简体中文", "en-US": "English" };
+const LANGUAGE_NAMES: Record<string, string> = { "zh-CN": "简体中文", "en-US": "English" }; // i18n-exempt: 语言自称
 
 export function LocaleSwitcher({ className }: { className?: string }) {
   const { locale, locales, setLocale } = useLocale();

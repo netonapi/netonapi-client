@@ -10,10 +10,12 @@ import { useT } from "@neton/application-client-runtime/i18n";
 import { BrandMark } from "@/components/brand-mark";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { useSiteBrand } from "@/components/site-brand";
+import { afterAuthTarget, useAuthPageHref } from "@/lib/auth-flow";
 
 export default function RegisterPage() {
   const brand = useSiteBrand();
   const t = useT("console");
+  const loginHref = useAuthPageHref("/login");
   const describeError = useDescribeError("account");
   const captcha = useCaptcha(brand.captcha, "register");
   const [username, setUsername] = React.useState("");
@@ -54,12 +56,12 @@ export default function RegisterPage() {
     try {
       const res = await fetch("/api/auth/register", {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...captcha.headers },
+        headers: { "Content-Type": "application/json", "X-Neton-Csrf": "1", ...captcha.headers },
         body: JSON.stringify({ username: username.trim(), password, nickname, inviteCode }),
       });
       const body = await res.json();
       if (body.code === 0) {
-        window.location.href = "/";
+        window.location.href = afterAuthTarget();
         return;
       }
       setError(describeError(apiErrorFromEnvelope(body, res.status, res.headers)));
@@ -103,17 +105,13 @@ export default function RegisterPage() {
             <div className="relative">
               <div className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--card)] px-3 py-1.5 text-[10px] font-semibold tracking-[0.14em] text-[var(--muted-foreground)] shadow-sm">
                 <Sparkles size={13} className="text-[var(--primary)]" />
-                GET STARTED
+                {t("register.badge")}
               </div>
               <h1 className="mt-8 max-w-sm text-[30px] font-semibold leading-[1.2] tracking-[-0.035em] sm:text-[34px]">{t("auth.heroTitle")}</h1>
               <p className="mt-4 max-w-sm text-sm leading-7 text-[var(--muted-foreground)]">{t("register.heroBody")}</p>
             </div>
             <div className="relative mt-10 space-y-1 rounded-xl border border-[var(--border)] bg-[var(--card)]/75 p-2 shadow-sm backdrop-blur">
-              {[
-                [t("auth.feature1"), "Create and revoke instantly"],
-                [t("auth.feature2"), "Per-request usage and cost"],
-                [t("auth.feature3"), "Top up and start calling"],
-              ].map(([label, detail]) => (
+              {(["1", "2", "3"] as const).map((n) => [t(`auth.feature${n}`), t(`auth.feature${n}Detail`)]).map(([label, detail]) => (
                 <div key={label} className="flex items-center gap-3 rounded-xl px-3 py-3">
                   <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--primary-soft)] text-[var(--primary)]"><Check size={14} strokeWidth={2.5} /></span>
                   <div className="min-w-0"><div className="text-xs font-semibold">{label}</div><div className="mt-0.5 truncate text-[11px] text-[var(--muted-foreground)]">{detail}</div></div>
@@ -121,8 +119,8 @@ export default function RegisterPage() {
               ))}
             </div>
             <div className="relative mt-auto flex items-center justify-between pt-8 text-[10px] font-medium tracking-[0.1em] text-[var(--muted-foreground)]">
-              <span>{brand.name.toUpperCase()} CONSOLE</span>
-              <span>SECURE / METERED</span>
+              <span>{t("auth.footerConsole", { name: brand.name.toUpperCase() })}</span>
+              <span>{t("auth.footerTagline")}</span>
             </div>
           </section>
 
@@ -130,7 +128,7 @@ export default function RegisterPage() {
             <div className="mx-auto w-full max-w-[390px]">
               <div className="mb-8">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--muted)] text-[var(--primary)]"><UserPlus size={18} /></div>
-                <p className="mt-6 text-[10px] font-semibold tracking-[0.17em] text-[var(--primary)]">CREATE ACCOUNT</p>
+                <p className="mt-6 text-[10px] font-semibold tracking-[0.17em] text-[var(--primary)]">{t("register.eyebrow")}</p>
                 <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em]">{t("register.title", { name: brand.name })}</h2>
                 <p className="mt-2 text-xs leading-6 text-[var(--muted-foreground)]">{t("register.subtitle")}</p>
               </div>
@@ -170,7 +168,7 @@ export default function RegisterPage() {
               </form>
               <div className="mt-7 flex items-start gap-2.5 border-t border-[var(--border)] pt-5 text-[11px] leading-5 text-[var(--muted-foreground)]">
                 <KeyRound size={15} className="mt-0.5 shrink-0 text-[var(--primary)]" />
-                <span>{t("register.haveAccount")}<a href="/login" className="font-medium text-[var(--primary)] hover:underline">{t("register.login")}</a> · <a href="/pricing" className="hover:underline">{t("auth.viewPricing")}</a></span>
+                <span>{t("register.haveAccount")}<a href={loginHref} className="font-medium text-[var(--primary)] hover:underline">{t("register.login")}</a> · <a href="/pricing" className="hover:underline">{t("auth.viewPricing")}</a></span>
               </div>
             </div>
           </section>
@@ -178,7 +176,7 @@ export default function RegisterPage() {
       </section>
 
       <footer className="relative z-10 mx-auto flex h-[52px] w-full max-w-[1280px] items-center justify-between px-5 text-[10px] text-[var(--muted-foreground)] sm:px-8">
-        <span>© {new Date().getFullYear()} {brand.name}</span>
+        <span>© {brand.name}</span>
         <span className="tracking-[0.08em]">{brand.tagline}</span>
       </footer>
     </main>

@@ -61,8 +61,8 @@ export interface PageResponse<T> {
  * 当前格式化语言与时区。由 I18nProvider 在语言切换时设置（见 i18n.tsx 的 setFormatLocale），
  * 使模块里直接调用的 [formatDateTime] 不必改成 hook 也能跟随当前语言。
  */
-let formatLocale = process.env.NEXT_PUBLIC_NETON_DEFAULT_LOCALE?.trim() || "zh-CN";
-let formatTimeZone: string | undefined = process.env.NEXT_PUBLIC_NETON_TIME_ZONE?.trim() || undefined;
+let formatLocale = "zh-CN";
+let formatTimeZone: string | undefined;
 
 export function setFormatLocale(locale: string, timeZone?: string): void {
   formatLocale = locale;
@@ -97,7 +97,7 @@ export interface MemberLoginResponse {
   scope: string[];
 }
 
-/** 与 module-account 的 /app/member/user/get 对齐（宽松：以后端为准）。 */
+/** 与 module-member /app/member/user/get 对齐（宽松：以后端为准）。 */
 export interface MemberProfile {
   id: number;
   username?: string | null;
@@ -111,7 +111,7 @@ export interface MemberProfile {
  * E.164 区号（含 +）。号码本身不带分隔，单靠正则分不出区号与号码 ——
  * `^\+\d{1,3}` 会把 +8613… 切成 +861 / 3…，所以按已知区号做最长前缀匹配。
  */
-const CALLING_CODES = ["+1", "+7", "+20", "+33", "+44", "+49", "+60", "+61", "+62", "+63", "+65", "+66", "+81", "+82", "+84", "+86", "+91", "+852", "+853", "+886", "+971"];
+export const CALLING_CODES = ["+1", "+7", "+20", "+33", "+44", "+49", "+60", "+61", "+62", "+63", "+65", "+66", "+81", "+82", "+84", "+86", "+91", "+852", "+853", "+886", "+971"];
 
 /** +8613812345678 → +86 138****5678；认不出区号时整串打码中间段。 */
 export function maskMobile(mobile: string): string {

@@ -1,105 +1,126 @@
 /**
- * 构建期模块注册表生成（NETON_APPLICATION_FRONT_SPEC §5 / §10）。
- * 读 apps/console/client.modules.ts → 校验 manifest → 生成
- * apps/console/src/generated/modules.generated.ts（静态 import()，Next 可分析拆包）。
- * 任何校验失败即抛错中断构建。
+ * 构建期注册表生成（NETON_APPLICATION_FRONT_SPEC §5 / §10；公开路由 public-routes §4、§14）。
+ *
+ * 读 apps/console/client.modules.ts（装配清单）与 apps/console/site.config.ts（站点配置）→ 校验 →
+ * 生成：
+ * - src/generated/*：模块注册表、站点配置、proxy 数据、公开路由注册表（不入库）
+ * - src/generated/public-routes.json：公开路由的 URL 形态清单（**入库**，URL 形态回归检查的基线）
+ * - src/app/(console)/<consoleBasePath>/…：控制台路由文件（不入库）
+ * - src/app/(public)/(modules)/…、(site)/…：公开路由与 fork 页面的真实路由文件（不入库）
+ * 任何校验失败即以非零码退出，构建中断。
+ *
+ * - src/generated/next.generated.json：next.config 读的构建参数（要转译的模块包）——next.config 不再自己
+ *   import 装配清单，换一份清单（夹具）时两边天然一致
+ *
+ * 环境变量：NETON_SITE_ORIGIN 覆盖 origin；NETON_CLIENT_MODULES_FILE / NETON_SITE_CONFIG_FILE /
+ * NETON_PUBLIC_ROUTES_FILE 换一份装配清单 / 站点配置 / URL 形态基线（底座的端到端测试用夹具，e2e/run.mts；
+ * 夹具有自己的基线，不碰产品入库的 src/generated/public-routes.json）。
  */
-import { mkdir, writeFile } from "node:fs/promises";
+import { existsSync, readdirSync } from "node:fs";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import type { FrontModuleManifest } from "@neton/application-client-contract";
-
-const SHELL_CONTRACT_MAJOR = 1;
+import type { FrontModuleManifest, SiteConfig } from "@neton/application-client-contract";
+import { resolveSite } from "@neton/application-client-runtime/public";
+import { plan, type LoadedModule } from "./registry/plan.mts";
+import { scanForbiddenImports } from "./registry/scan.mts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const shellDir = path.resolve(here, "../apps/console");
 // 模块包必须从 shell 的依赖上下文解析（workspace 链接挂在 shell 下，不在仓库根）。
 const shellRequire = createRequire(path.join(shellDir, "package.json"));
 
-const { default: packages } = (await import(
-  pathToFileURL(path.join(shellDir, "client.modules.ts")).href
-)) as { default: string[] };
+function die(messages: string[]): never {
+  for (const m of messages) console.error(m);
+  console.error(`[registry] failed with ${messages.length} error(s)`);
+  process.exit(1);
+}
 
-interface Loaded { pkg: string; manifest: FrontModuleManifest; }
-const loaded: Loaded[] = [];
+const modulesFile = path.resolve(shellDir, process.env.NETON_CLIENT_MODULES_FILE ?? "client.modules.ts");
+const siteFile = path.resolve(shellDir, process.env.NETON_SITE_CONFIG_FILE ?? "site.config.ts");
+
+const { default: packages } = (await import(pathToFileURL(modulesFile).href)) as { default: string[] };
+const { default: siteConfig } = (await import(pathToFileURL(siteFile).href)) as { default: SiteConfig };
+
+let site;
+try {
+  site = resolveSite(siteConfig, process.env);
+} catch (e) {
+  die([(e as Error).message]);
+}
+
+const modules: LoadedModule[] = [];
 for (const pkg of packages) {
   const manifestPath = shellRequire.resolve(`${pkg}/manifest`);
   const mod = await import(pathToFileURL(manifestPath).href);
   const manifest: FrontModuleManifest | undefined = mod.default ?? mod.manifest;
-  if (!manifest) throw new Error(`[registry] ${pkg} 未从 ./manifest 导出默认 manifest`);
-  loaded.push({ pkg, manifest });
+  if (!manifest) die([`[registry] ${pkg} does not export a default manifest from ./manifest`]);
+  modules.push({ pkg, manifest });
 }
 
-// ---- 校验 ----
-const ids = new Map<string, string>();
-const pageKeys = new Map<string, string>();
-const pagePaths = new Map<string, string>();
-for (const { pkg, manifest } of loaded) {
-  if (ids.has(manifest.id))
-    throw new Error(`[registry] 重复模块 id "${manifest.id}"：${ids.get(manifest.id)} vs ${pkg}`);
-  ids.set(manifest.id, pkg);
-  const major = Number(String(manifest.contractVersion).split(".")[0]);
-  if (major !== SHELL_CONTRACT_MAJOR)
-    throw new Error(
-      `[registry] ${pkg} contractVersion=${manifest.contractVersion} 与 shell contract major=${SHELL_CONTRACT_MAJOR} 不兼容`,
-    );
-  for (const p of manifest.pages) {
-    if (pageKeys.has(p.key))
-      throw new Error(`[registry] 重复 page key "${p.key}"：${pageKeys.get(p.key)} vs ${pkg}`);
-    pageKeys.set(p.key, pkg);
-    if (pagePaths.has(p.path))
-      throw new Error(`[registry] 重复路由 "${p.path}"：${pagePaths.get(p.path)} vs ${pkg}`);
-    pagePaths.set(p.path, pkg);
+const resolved = new Map<string, string | null>();
+function resolveSpecifier(specifier: string): string | null {
+  if (!resolved.has(specifier)) {
+    try { resolved.set(specifier, shellRequire.resolve(specifier)); } catch { resolved.set(specifier, null); }
+  }
+  return resolved.get(specifier)!;
+}
+
+const sitePagesDir = path.join(shellDir, "src/site/pages");
+const sitePageEntries = existsSync(sitePagesDir)
+  ? readdirSync(sitePagesDir).filter((f) => f.endsWith(".tsx")).map((f) => f.replace(/\.tsx$/, ""))
+  : [];
+
+const routesJsonPath = path.resolve(shellDir, process.env.NETON_PUBLIC_ROUTES_FILE ?? "src/generated/public-routes.json");
+const previousRoutes = existsSync(routesJsonPath)
+  ? (JSON.parse(await readFile(routesJsonPath, "utf8")) as { routes: Record<string, string> }).routes
+  : null;
+
+// 410 页的文案取宿主 `site` 命名空间（站点语言，缺失回退 zh-CN）
+const { siteCatalogs } = (await import(pathToFileURL(path.join(shellDir, "src/site/messages.ts")).href)) as { siteCatalogs: Record<string, Record<string, Record<string, string>>> };
+const siteMessages = { ...siteCatalogs.site?.["zh-CN"], ...siteCatalogs.site?.[site.locale] };
+const goneTexts = { title: siteMessages["status.gone.title"] ?? "410", body: siteMessages["status.gone.body"] ?? "", home: siteMessages["status.home"] ?? "/" };
+
+const result = plan({ modules, site, sitePageEntries, previousRoutes, goneTexts, resolvable: (s) => resolveSpecifier(s) !== null });
+if (result.errors.length) die(result.errors);
+
+// ---- 禁止 import 扫描（§5）：服务端入口及其相对 import ----
+const serverEntries: string[] = [];
+for (const route of result.routes) {
+  if (route.group === "(site)") {
+    const file = path.join(sitePagesDir, `${route.importFrom.replace("@/site/pages/", "")}.tsx`);
+    serverEntries.push(file);
+  } else {
+    serverEntries.push(resolveSpecifier(route.importFrom)!);
   }
 }
-for (const { pkg, manifest } of loaded)
-  for (const r of manifest.requires ?? [])
-    if (!ids.has(r)) throw new Error(`[registry] ${pkg} requires "${r}" 未安装`);
-
-// ---- 语言包：模块 id 即命名空间，`<pkg>/locales/<entry>` 必须能解析 ----
-const localeEntries: string[] = [];
-for (const { pkg, manifest } of loaded) {
-  if (!manifest.locales?.length) continue;
-  const langs = manifest.locales.map((l) => {
-    const spec = `${pkg}/locales/${l.entry}`;
-    try {
-      shellRequire.resolve(spec);
-    } catch {
-      throw new Error(`[registry] ${pkg} 声明了语言包 ${l.lang} → ${spec}，但解析不到（新增文件后需在仓库根 pnpm install）`);
-    }
-    return `    ${JSON.stringify(l.lang)}: () => import(${JSON.stringify(spec)}),`;
-  });
-  localeEntries.push(`  ${JSON.stringify(manifest.id)}: {\n${langs.join("\n")}\n  },`);
+for (const { pkg, manifest } of modules) {
+  for (const slot of manifest.slots ?? []) if (slot.rendering === "server") serverEntries.push(resolveSpecifier(`${pkg}/slots/${slot.entry}`)!);
+  for (const card of manifest.cardRenderers ?? []) serverEntries.push(resolveSpecifier(`${pkg}/cards/${card.entry}`)!);
+  for (const s of manifest.sitemaps ?? []) serverEntries.push(resolveSpecifier(`${pkg}/sitemaps/${s.entry}`)!);
+  for (const f of manifest.feeds ?? []) serverEntries.push(resolveSpecifier(`${pkg}/feeds/${f.entry}`)!);
+}
+// fork 的门户外壳也渲染在每个公开页里：同样不能碰请求身份
+for (const file of ["src/site/portal-shell.tsx"]) if (existsSync(path.join(shellDir, file))) serverEntries.push(path.join(shellDir, file));
+const forbidden = scanForbiddenImports(serverEntries, { aliasRoot: path.join(shellDir, "src") });
+if (forbidden.length) {
+  die(forbidden.map((f) => `[registry] cacheable public code must not use ${f.rule}: ${path.relative(shellDir, f.file)}:${f.line}  ${f.text}`));
 }
 
-// ---- 生成 ----
-const entries = loaded.flatMap(({ pkg, manifest }) =>
-  manifest.pages.map((p) => `  ${JSON.stringify(p.key)}: () => import(${JSON.stringify(`${pkg}/pages/${p.entry}`)}),`),
-);
-const out = `/* 自动生成：pnpm registry（scripts/generate-registry.mts）。禁止手改。 */
-import type { FrontModuleManifest } from "@neton/application-client-contract";
-import type { LocaleRegistry } from "@neton/application-client-runtime/i18n";
-import type * as React from "react";
+// ---- 写文件：先清掉上次生成的路由目录（形态变了旧文件不能留着） ----
+const generatedRouteRoots = ["src/app/(console)", "src/app/(public)/(modules)", "src/app/(public)/(site)"];
+for (const dir of generatedRouteRoots) await rm(path.join(shellDir, dir), { recursive: true, force: true });
+for (const [file, content] of Object.entries(result.files)) {
+  const target = path.join(shellDir, file);
+  await mkdir(path.dirname(target), { recursive: true });
+  await writeFile(target, content);
+}
+await mkdir(path.dirname(routesJsonPath), { recursive: true });
+await writeFile(routesJsonPath, `${JSON.stringify({ version: 1, routes: result.routesJson }, null, 2)}\n`);
+await writeFile(path.join(shellDir, "src/generated/next.generated.json"), `${JSON.stringify({ transpilePackages: packages }, null, 2)}\n`);
 
-export const installedModules: FrontModuleManifest[] = ${JSON.stringify(
-  loaded.map((l) => l.manifest),
-  null,
-  2,
-)};
-
-export const pageRegistry: Record<string, () => Promise<{ default: React.ComponentType }>> = {
-${entries.join("\n")}
-};
-
-/** 模块语言包：命名空间（模块 id）→ 语言 → loader。随模块懒加载。 */
-export const localeRegistry: LocaleRegistry = {
-${localeEntries.join("\n")}
-};
-`;
-const genDir = path.join(shellDir, "src/generated");
-await mkdir(genDir, { recursive: true });
-await writeFile(path.join(genDir, "modules.generated.ts"), out);
+const pageCount = modules.reduce((n, m) => n + m.manifest.pages.length, 0);
 console.log(
-  `[registry] ok — ${loaded.length} module(s), ${pageKeys.size} page(s) → src/generated/modules.generated.ts`,
+  `[registry] ok — ${modules.length} module(s), ${pageCount} console page(s) under ${site.consoleBasePath || "/"}, ${result.routes.length} public route(s)`,
 );

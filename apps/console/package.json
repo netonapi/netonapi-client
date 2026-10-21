@@ -7,6 +7,7 @@
     "dev": "next dev -p 8880",
     "prebuild": "tsx ../../scripts/generate-registry.mts",
     "build": "next build",
+    "postbuild": "tsx ../../scripts/check-bundle-budget.mts",
     "start": "next start",
     "typecheck": "tsc --noEmit"
   },

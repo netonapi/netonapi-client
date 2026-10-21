@@ -1,0 +1,17 @@
+@import "tailwindcss" source(none);
+@import "../styles/tokens.css";
+@import "./portal.css";
+/*
+ * 门户（公开页面）的样式表：PublicFrame 导入，`(public)` 布局与站点级 404 共用（public-routes §10.1）。
+ *
+ * 只扫描会渲染在公开页里的代码——门户外壳与 fork 页面（src/site）、生成的公开路由文件、站点级 404，
+ * 以及各模块的公开路由、卡片与插槽（`src/{public,cards,slots}`）。控制台、工作区宿主与模块的控制台页面
+ * 不进这份样式表：公开页只下载它自己用到的工具类，首屏只有这一个小样式表阻塞渲染。
+ * 门户专属的样式（品牌色、外壳的特殊排版）写在 fork 的 src/site/portal.css 里。
+ */
+@source "../site";
+@source "../app/(public)";
+@source "../app/not-found.tsx";
+@source "../../node_modules/@neton/*/src/public";
+@source "../../node_modules/@neton/*/src/cards";
+@source "../../node_modules/@neton/*/src/slots";

@@ -1,8 +1,16 @@
 node_modules/
 .next/
+.next-e2e/
 dist/
 *.tsbuildinfo
 .turbo/
-apps/*/src/generated/
 .env*.local
 .DS_Store
+
+# 注册表生成物（pnpm registry，scripts/generate-registry.mts）。只有公开路由的 URL 形态清单入库：
+# 它是 URL 形态回归检查的基线（public-routes §13）。
+apps/console/src/generated/*
+!apps/console/src/generated/public-routes.json
+apps/console/src/app/(console)/
+apps/console/src/app/(public)/(modules)/
+apps/console/src/app/(public)/(site)/

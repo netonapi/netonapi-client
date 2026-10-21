@@ -1,25 +1,18 @@
-import { cookies } from "next/headers";
-import { backendJson, forwardedClientHeaders, SESSION_COOKIE } from "@neton/application-client-runtime/server";
+import { backendJson, csrfRejection, envelopeFailure, establishSession, forwardedClientHeaders, WEB_DEVICE } from "@neton/application-client-runtime/server";
 import type { MemberLoginResponse } from "@neton/application-client-runtime/types";
 
+/** 账密登录：`{ username, password }` → 后端 `/app/auth/login-username`，成功后建立会话 Cookie。 */
 export async function POST(req: Request) {
-  const body = await req.text();
+  // 防登录 CSRF：跨站页面不能替用户登进攻击者的账号
+  const rejected = csrfRejection(req);
+  if (rejected) return rejected;
+  const input = (await req.json().catch(() => null)) as { username?: unknown; password?: unknown } | null;
   const res = await backendJson<MemberLoginResponse>("/app/auth/login-username", undefined, {
     method: "POST",
     headers: forwardedClientHeaders(req.headers),
-    body,
+    body: JSON.stringify({ username: input?.username, password: input?.password, device: WEB_DEVICE }),
   });
-  if (res.code !== 0 || !res.data) {
-    // 原样透传后端的机器码与字段错误，页面经 useDescribeError 翻译。
-    return Response.json({ code: res.code || 4, message: res.message || "INVALID_RESPONSE", errors: res.errors }, { status: 401 });
-  }
-  const maxAge = Math.max(60, Math.floor(res.data.expiresIn) || 8 * 3600);
-  (await cookies()).set(SESSION_COOKIE, res.data.accessToken, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge,
-  });
+  if (res.code !== 0 || !res.data) return envelopeFailure(res, 401);
+  await establishSession(res.data);
   return Response.json({ code: 0, data: { userId: res.data.userId } });
 }

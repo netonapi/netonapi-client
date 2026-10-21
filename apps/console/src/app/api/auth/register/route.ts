@@ -1,5 +1,4 @@
-import { cookies } from "next/headers";
-import { backendJson, forwardedClientHeaders, SESSION_COOKIE } from "@neton/application-client-runtime/server";
+import { backendJson, csrfRejection, envelopeFailure, establishSession, forwardedClientHeaders } from "@neton/application-client-runtime/server";
 import type { MemberLoginResponse } from "@neton/application-client-runtime/types";
 
 interface RegisterInput {
@@ -10,6 +9,9 @@ interface RegisterInput {
 }
 
 export async function POST(req: Request) {
+  // 防登录 CSRF：跨站页面不能替用户登进攻击者的账号
+  const rejected = csrfRejection(req);
+  if (rejected) return rejected;
   const input = (await req.json().catch(() => null)) as RegisterInput | null;
   const username = input?.username?.trim() ?? "";
   const password = input?.password ?? "";
@@ -35,17 +37,8 @@ export async function POST(req: Request) {
     headers: forwardedClientHeaders(req.headers),
     body: JSON.stringify(payload),
   });
-  if (res.code !== 0 || !res.data) {
-    return Response.json({ code: res.code || 4, message: res.message || "INVALID_RESPONSE", errors: res.errors }, { status: 400 });
-  }
-  // 注册成功即登录：与 login route 同一套会话 cookie，用户不必再登一次。
-  const maxAge = Math.max(60, Math.floor(res.data.expiresIn) || 8 * 3600);
-  (await cookies()).set(SESSION_COOKIE, res.data.accessToken, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge,
-  });
+  if (res.code !== 0 || !res.data) return envelopeFailure(res, 400);
+  // 注册成功即登录：与登录同一套会话 Cookie，用户不必再登一次。
+  await establishSession(res.data);
   return Response.json({ code: 0, data: { userId: res.data.userId } });
 }

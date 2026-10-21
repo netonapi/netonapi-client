@@ -1,0 +1,82 @@
+@import "tailwindcss";
+@import "./tokens.css";
+/*
+ * 控制台与登录注册页的样式表（src/console/layout.tsx、(auth)/layout.tsx 导入）。门户页面不加载它：
+ * 门户只用 src/site/public.css（public-routes §10.1）。
+ *
+ * Tailwind 扫描范围。
+ *
+ * 🔴 console 自己的 src 是自动扫描的，但**工作区宿主与所有业务模块页面都在
+ * node_modules 里**（都是 file: 依赖），不显式 @source 就扫不到 —— 只出现在那些
+ * 文件里的类不会进产物，页面不报错，只是布局悄悄塌掉（网格退化成单列）。
+ *
+ * `packages` 是本发行版自有的 client-* 套件；node_modules 覆盖共享的工作区运行时
+ * 和各业务模块。
+ */
+@source "../../../../packages";
+@source "../../node_modules/@neton";
+@source "../../../node_modules/@neton";
+
+body {
+  font-family: "Geist", "Avenir Next", "Noto Sans SC", "Source Han Sans SC", "PingFang SC", sans-serif;
+  text-rendering: optimizeLegibility;
+  letter-spacing: -0.006em;
+}
+
+.admin-filter-grid {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) 160px 160px auto;
+  align-items: end;
+  gap: 0.75rem;
+}
+
+.admin-filter-grid-member {
+  grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) 150px auto auto;
+}
+
+@media (max-width: 900px) {
+  .admin-filter-grid { grid-template-columns: 1fr 1fr; }
+  .admin-filter-grid-member { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 560px) {
+  .admin-filter-grid { grid-template-columns: 1fr; }
+}
+
+* {
+  scrollbar-color: #a1a1aa transparent;
+  scrollbar-width: thin;
+}
+
+@keyframes front-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.front-page-enter {
+  animation: front-fade-up 180ms ease-out;
+}
+
+.front-shell-main {
+  background: var(--background);
+}
+
+.front-surface {
+  border: 1px solid var(--border);
+  background: var(--card);
+  box-shadow: var(--shadow-xs);
+}
+
+.front-scrollbar-hidden {
+  scrollbar-width: none;
+}
+
+.front-scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}

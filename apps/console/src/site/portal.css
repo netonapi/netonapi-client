@@ -1,0 +1,8 @@
+/*
+ * 门户专属样式：**产品 fork 覆盖这个文件**（与 portal-shell.tsx 同一规则）。只作用于公开页面
+ * （src/site/public.css 导入它），控制台不加载。典型内容：品牌色覆盖门户的设计令牌，如
+ *
+ *   .brand-portal { --primary: #d7263d; --primary-foreground: #fff; }
+ *
+ * 底座的缺省为空。
+ */

@@ -7,6 +7,7 @@
  * Retry-After。后端信封的 `message` 是机器码（spec ERROR_CODE_SPEC「消息即机器码」），不是给人看的句子——
  * 页面用 `useDescribeError("<模块 id>")`（errors.ts）把错误变成当前语言的说明，不要直接显示 `error.message`。
  */
+import { isConsolePath, loginHref } from "./public/next-path";
 import type { Envelope } from "./types";
 
 export type ApiErrorKind =
@@ -138,8 +139,13 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
     : new ApiError(res.status === 401 ? "unauthorized" : res.status === 429 ? "rate_limited" : res.status >= 500 ? "server" : "invalid_response", `HTTP ${res.status}`, {
       status: res.status, retryAfterSeconds: retryAfter(res.headers),
     });
-  // 只有会话失效才回登录页；凭据错（如当前密码不对，HTTP 也是 401）留在原页提示。
-  if (error.kind === "unauthorized" && typeof window !== "undefined") window.location.href = "/login";
+  // 只有会话失效、且在控制台里才回登录页（带上 next 跳回）；凭据错（如当前密码不对，HTTP 也是 401）留在原页提示。
+  // 公开页上不跳转：由组件决定调 requireLogin 还是提示（public-routes §9.3）。
+  if (error.kind === "unauthorized" && typeof window !== "undefined") {
+    const base = process.env.NEXT_PUBLIC_NETON_CONSOLE_BASE_PATH ?? "/";
+    const { pathname, search, hash } = window.location;
+    if (isConsolePath(pathname, base)) window.location.href = loginHref(`${pathname}${search}${hash}`, base);
+  }
   throw error;
 }
 
@@ -147,9 +153,12 @@ export function apiWrite<T>(
   path: string,
   method: "POST" | "PUT" | "PATCH" | "DELETE",
   data?: unknown,
+  /** 额外请求头，如人机验证凭证（captcha.headers） */
+  headers?: Record<string, string>,
 ): Promise<T> {
   return apiFetch<T>(path, {
     method,
+    headers,
     body: data === undefined ? undefined : JSON.stringify(data),
   });
 }

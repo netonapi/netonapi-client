@@ -1,0 +1,137 @@
+/*
+ * 共享层：设计令牌（亮 / 暗两套 CSS 变量）与最小的基础样式。门户（src/site/public.css）与
+ * 控制台（src/styles/console.css）各自 @import 它——两份样式表互不包含对方的工具类。
+ * 不含 Tailwind 本身：由导入它的入口样式表决定扫描范围。
+ */
+/* shadcn radius scale: menus < controls < navigation < surfaces. */
+@theme inline {
+  --radius-xs: calc(var(--radius) - 6px);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  color-scheme: light;
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --body-foreground: oklch(0.32 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-hover: oklch(0.269 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --primary-soft: oklch(0.97 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --border: oklch(0.922 0 0);
+  --border-strong: oklch(0.87 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-active: oklch(0.97 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --table-header: oklch(0.97 0 0);
+  --surface-raised: oklch(1 0 0);
+  --surface-sunken: oklch(0.985 0 0);
+  --shadow-xs: 0 1px 2px rgb(0 0 0 / 0.04);
+  --shadow-sm: 0 1px 3px rgb(0 0 0 / 0.06), 0 1px 2px rgb(0 0 0 / 0.04);
+  --shadow-md: 0 10px 30px rgb(0 0 0 / 0.12);
+  --hero: oklch(0.145 0 0);
+  --overlay: rgba(9, 9, 11, 0.46);
+  --online: #22c55e;
+  --front-canvas: var(--background);
+  --front-panel: var(--card);
+  --front-panel-muted: var(--muted);
+  --front-line: var(--border);
+  --front-ink: var(--foreground);
+  --front-muted: var(--muted-foreground);
+  --front-sidebar: var(--sidebar);
+  --front-sidebar-soft: var(--sidebar-accent);
+  --front-accent: var(--primary);
+  --front-accent-soft: var(--primary-soft);
+  --front-warm: oklch(0.646 0.222 41.116);
+}
+
+.dark {
+  color-scheme: dark;
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --body-foreground: oklch(0.87 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-hover: oklch(0.87 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --primary-soft: oklch(0.269 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --border: oklch(1 0 0 / 10%);
+  --border-strong: oklch(1 0 0 / 15%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-active: oklch(0.269 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --table-header: oklch(0.269 0 0);
+  --surface-raised: oklch(0.205 0 0);
+  --surface-sunken: oklch(0.145 0 0);
+  --shadow-xs: 0 1px 2px rgb(0 0 0 / 0.24);
+  --shadow-sm: 0 1px 3px rgb(0 0 0 / 0.32), 0 1px 2px rgb(0 0 0 / 0.24);
+  --shadow-md: 0 12px 36px rgb(0 0 0 / 0.45);
+  --hero: oklch(0.205 0 0);
+  --overlay: rgba(0, 0, 0, 0.68);
+}
+
+* {
+  box-sizing: border-box;
+  border-color: var(--border);
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--body-foreground);
+  /* 系统字体栈：不加载任何网络字体（门户的性能预算，首屏不等字体） */
+  font-family: system-ui, -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", "Source Han Sans SC", sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  background: oklch(0.87 0 0);
+  color: oklch(0.145 0 0);
+}
+
+.dark ::selection {
+  background: oklch(0.371 0 0);
+  color: oklch(0.985 0 0);
+}

@@ -32,6 +32,10 @@ NetonAPI 自助侧前端（仓库 `netonapi/netonapi-client`，本地目录同�
 两侧的 Cookie 都是 HttpOnly + `SameSite=Lax`，`secure` 仅在 `NODE_ENV=production` 打开，
 `maxAge` 下限 60s、兜底 8h。
 
+底座的公开路由（匿名可缓存的 SSR 门户页面）契约见 [docs/spec/public-routes.md](docs/spec/public-routes.md)。
+本控制台不装公开路由：`apps/console/site.config.ts` 保持 `consoleBasePath = "/"`（整站是登录后的页面，
+robots.txt 为 `Disallow: /`）。
+
 ## 结构
 
 - `apps/console`（`@neton/application-client-console`）—— Next.js 壳：会员登录、
@@ -76,12 +80,25 @@ projects/
 ## 开发
 
 ```bash
-pnpm install --frozen-lockfile
-pnpm registry      # 由 client.modules.ts 生成页面注册表（predev / prebuild 会自动跑）
-pnpm dev           # http://localhost:3000，后端地址用 NETON_BACKEND_URL 覆盖
-pnpm typecheck     # 先 registry 再 tsc --noEmit
-pnpm build
+pnpm install
+pnpm registry       # 由 client.modules.ts + site.config.ts 生成注册表与路由文件（prebuild 自动跑）
+pnpm typecheck      # registry + check:locales + 各包 tsc
+pnpm test           # 生成脚本与运行时单测
+pnpm e2e            # 端到端：夹具模块 + 模拟后端 + 真实 next build / next start（见 e2e/run.mts）
+pnpm dev            # NETON_BACKEND_URL 默认 http://localhost:8080
 ```
+
+部署配置（环境变量）：`NETON_BACKEND_URL`（浏览器代理与会话校验用的后端地址）、`NETON_BACKEND_INTERNAL_URL`
+（公开页服务端取数，内网直连，缺省回落前者）、`NETON_SITE_ORIGIN`（构建期覆盖站点 origin）、
+`NETON_SITE_REVALIDATE_SECRET`（失效端点与已删除台账的共享密钥，≥ 32 字节）、`NETON_SITE_INDEXNOW_KEY`。
+`next build` 不连后端（public-routes §1a）：所有公开页面按需渲染，构建机不需要能访问后端。
+`next start` 不要以 IP 字面量绑定（`-H 127.0.0.1` / `HOSTNAME=127.0.0.1`）：Next 16 下 proxy 的改写会落空成 404，
+绑 `0.0.0.0` 或 `localhost`，内网隔离交给防火墙 / 反代（public-routes §2.3）。
+
+端到端测试（`pnpm e2e`）是密封的：夹具经 `NETON_CLIENT_MODULES_FILE` / `NETON_SITE_CONFIG_FILE` /
+`NETON_PUBLIC_ROUTES_FILE` 选用、构建到 `.next-e2e`，夹具模块只在运行期间复制进 shell，结束后按产品自己的配置
+重新生成注册表；端口随机，模拟后端在测试进程内。`E2E_SERVE=1 pnpm e2e` 只构建并启动（排查用）。
+产品 fork 合并底座后可以照样跑它，验证底座在自己的依赖版本下仍然成立。
 
 两个坑，都踩过：
 
@@ -95,7 +112,8 @@ pnpm build
 
 浏览器**拿不到** JWT：`POST /api/auth/login` 把会员令牌写成 HttpOnly Cookie，
 所有业务请求走 `/api/backend/<path>`，由 Next 服务端取出 Cookie、加 `Authorization: Bearer …`
-后转发到 `NETON_BACKEND_URL`（`cache: no-store`）。没有 Cookie 时代理直接回 401。
+后转发到 `NETON_BACKEND_URL`（`cache: no-store`）。没有 Cookie 时代理不带 Authorization 转发，
+是否允许匿名由后端接口决定（`@AllowAnonymous`）；写请求一律过 CSRF 检查。
 
 ## 已知缺口
 

@@ -15,8 +15,12 @@
   "devDependencies": {
     "@neton/application-client-kit": "workspace:*",
     "@neton/application-client-runtime": "workspace:*",
+    "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
     "react": "^19.3.0",
     "typescript": "^7.0.2"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
   }
 }

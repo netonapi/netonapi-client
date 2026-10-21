@@ -6,6 +6,7 @@
  * - `title.<页面 key>`：模块 manifest 里 `title` 的译文（页签标题）。
  */
 import type { StaticCatalogs } from "@neton/application-client-runtime/i18n";
+import siteConfig from "../site.config";
 
 export const CONSOLE_NAMESPACE = "console";
 
@@ -149,6 +150,31 @@ export const consoleCatalogs: StaticCatalogs = {
       "menu.paymentBilling": "充值与流水",
       "menu.memberInvite": "邀请好友",
       "menu.accountProfile": "个人资料",
+      "auth.badge": "开发者控制台",
+      "auth.feature1Detail": "随时创建与吊销",
+      "auth.feature2Detail": "逐次请求的用量与费用",
+      "auth.feature3Detail": "充值即可调用",
+      "register.badge": "开发者控制台",
+      "login.methods": "登录方式",
+      "login.method.password": "密码登录",
+      "login.method.sms": "验证码登录",
+      "login.mobile": "手机号",
+      "login.callingCode": "国际区号",
+      "login.mobilePlaceholder": "请输入手机号",
+      "login.smsCode": "验证码",
+      "login.smsCodePlaceholder": "短信里的验证码",
+      "login.sendCode": "获取验证码",
+      "login.sending": "发送中…",
+      "login.resend": "重新获取",
+      "login.resendIn": "{seconds} 秒后重发",
+      "login.submitSms": "登录 / 注册",
+      "login.smsNotice": "未注册的手机号验证后将自动创建账号。",
+      "tabs.openWorkspaces": "已打开的页面",
+      "auth.status": "身份服务运行正常",
+      "auth.footerConsole": "{name} 控制台",
+      "auth.footerTagline": "安全 / 计量",
+      "login.eyebrow": "登录",
+      "register.eyebrow": "创建账号",
     },
     "en-US": {
       "theme.light": "Switch to light mode",
@@ -288,17 +314,40 @@ export const consoleCatalogs: StaticCatalogs = {
       "menu.paymentBilling": "Top-ups & transactions",
       "menu.memberInvite": "Invite friends",
       "menu.accountProfile": "Profile",
+      "auth.badge": "DEVELOPER CONSOLE",
+      "auth.feature1Detail": "Create and revoke instantly",
+      "auth.feature2Detail": "Per-request usage and cost",
+      "auth.feature3Detail": "Top up and start calling",
+      "register.badge": "DEVELOPER CONSOLE",
+      "login.methods": "Sign-in method",
+      "login.method.password": "Password",
+      "login.method.sms": "Verification code",
+      "login.mobile": "Mobile number",
+      "login.callingCode": "Country calling code",
+      "login.mobilePlaceholder": "Enter your mobile number",
+      "login.smsCode": "Verification code",
+      "login.smsCodePlaceholder": "Code from the text message",
+      "login.sendCode": "Get code",
+      "login.sending": "Sending…",
+      "login.resend": "Resend",
+      "login.resendIn": "Resend in {seconds}s",
+      "login.submitSms": "Sign in / Sign up",
+      "login.smsNotice": "A new account is created automatically for numbers that haven't signed up yet.",
+      "tabs.openWorkspaces": "Open pages",
+      "auth.status": "Identity service operational",
+      "auth.footerConsole": "{name} CONSOLE",
+      "auth.footerTagline": "SECURE / METERED",
+      "login.eyebrow": "SIGN IN",
+      "register.eyebrow": "CREATE ACCOUNT",
     },
   },
 };
 
 /**
  * 服务端组件（如页面 metadata）用不了 hook：按默认语言取词条。
- * 默认语言的取法与 i18nConfigFromEnv 一致（那个函数在客户端模块里，服务端调不到）。
+ * 默认语言 = 站点配置的 locales.default（与登录注册页、控制台同一来源）。
  */
 export function defaultLocaleMessage(key: string): string {
-  const first = (process.env.NEXT_PUBLIC_NETON_LOCALES ?? "").split(",")[0]?.trim();
-  const locale = process.env.NEXT_PUBLIC_NETON_DEFAULT_LOCALE?.trim() || first || "zh-CN";
   const catalog = consoleCatalogs[CONSOLE_NAMESPACE];
-  return catalog[locale]?.[key] ?? catalog["zh-CN"][key] ?? key;
+  return catalog[siteConfig.locales.default]?.[key] ?? catalog["zh-CN"][key] ?? key;
 }
