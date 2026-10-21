@@ -12,4 +12,6 @@ export default defineSite({
   consoleBasePath: "/",
   locales: { default: "zh-CN", supported: ["zh-CN", "en-US"], prefix: "none" },
   auth: { loginMethods: ["password"] },
+  // NetonAPI：控制台在根路径，公开价格页不需要登录（public-routes §2.1b；页面在 (auth) 路由组，不经受保护布局）
+  anonymousPaths: ["/pricing"],
 });
