@@ -7,6 +7,7 @@ import { useSiteBrand } from "@/components/site-brand";
 
 export interface PublicModel {
   displayName?: string | null;
+  tiers?: { maxPromptTokens: number | null; input: string; output: string }[] | null;
   model: string;
   inputPrice: string;
   outputPrice: string;
@@ -22,6 +23,10 @@ export function PricingView({ models }: { models: PublicModel[] | null }) {
   const brand = useSiteBrand();
   const t = useT("console");
   const usd = (value: string) => (value === "0" ? t("pricing.free") : `$${value}`);
+  // 长上下文分档：第一档就是表里的价格，之后每档标出输入超过多少 tokens 时的价格
+  const tierLines = (m: PublicModel, field: "input" | "output") => (m.tiers ?? []).slice(1).map((tier, i) => (
+    <div key={i} className="text-[11px] text-[var(--muted-foreground)]">{t("pricing.tierAbove", { tokens: ((m.tiers ?? [])[i]?.maxPromptTokens ?? 0).toLocaleString(), price: tier[field] })}</div>
+  ));
   const capability = (c: string) => (CAPABILITIES.has(c) ? t(`capability.${c}`) : c);
   return (
     <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
@@ -72,8 +77,8 @@ export function PricingView({ models }: { models: PublicModel[] | null }) {
                         ? <><div className="text-[13px] font-medium">{m.displayName}</div><code className="text-[11px] text-[var(--muted-foreground)]">{m.model}</code></>
                         : <span className="font-mono text-[13px]">{m.model}</span>}</td>
                       <td className="px-4 py-3 text-xs text-[var(--muted-foreground)]">{(m.capabilities ?? []).map(capability).join(" · ") || "—"}</td>
-                      <td className="px-4 py-3 text-right tabular-nums">{perRequest ? "—" : usd(m.inputPrice)}</td>
-                      <td className="px-4 py-3 text-right tabular-nums">{perRequest ? "—" : usd(m.outputPrice)}</td>
+                      <td className="px-4 py-3 text-right tabular-nums">{perRequest ? "—" : <>{usd(m.inputPrice)}{tierLines(m, "input")}</>}</td>
+                      <td className="px-4 py-3 text-right tabular-nums">{perRequest ? "—" : <>{usd(m.outputPrice)}{tierLines(m, "output")}</>}</td>
                       <td className="px-4 py-3 text-right tabular-nums">{perRequest || m.cacheReadPrice === "0" ? "—" : `$${m.cacheReadPrice}`}</td>
                       <td className="px-4 py-3 text-right tabular-nums">{perRequest ? `$${(m.perRequestPrice! / 1_000_000).toFixed(4)}` : "—"}</td>
                     </tr>
