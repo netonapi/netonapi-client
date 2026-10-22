@@ -56,9 +56,13 @@ export function WorkspaceRoot({ user, basePath }: { user: SessionUser; basePath:
     reload: t("workspace.reload"),
     confirmCloseDirty: (title) => t("workspace.confirmCloseDirty", { title }),
   }), [t]);
-  // consoleNav 的 name 是词条 key（menu.*）；没有对应词条就原样显示。
+  // consoleNav 的 name / group 是词条 key（menu.*）；没有对应词条就原样显示。
   const nav = React.useMemo<NavItem[]>(
-    () => consoleNav.map((item) => ({ ...item, name: t.has(item.name) ? t(item.name) : item.name })),
+    () => consoleNav.map((item) => ({
+      ...item,
+      name: t.has(item.name) ? t(item.name) : item.name,
+      group: item.group && t.has(item.group) ? t(item.group) : item.group,
+    })),
     [t],
   );
   const pages = React.useMemo(() => {

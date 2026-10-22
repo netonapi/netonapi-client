@@ -14,25 +14,25 @@ import type { NavItem } from "@neton/application-client-runtime/menu";
  * icon 取 app-shell.tsx 里 iconMap 的键名。写错不会报错，resolveIcon 会静默回落到 CircleDot ——
  * 所以新增条目时要对着那张表挑，别凭印象写。
  *
- * name 写 `console` 命名空间里的词条 key（src/messages.ts 的 `menu.*`），由 workspace-root 按当前语言翻译；
+ * name 与 group 都写 `console` 命名空间里的词条 key（src/messages.ts 的 `menu.*`），由 workspace-root 按当前语言翻译；
  * 找不到对应词条时原样显示，所以直接写字面名称也能用。
  */
 export const consoleNav: NavItem[] = [
-  { name: "menu.gatewayKey", path: "/gateway/key", icon: "idcard" },
-  { name: "menu.gatewayModel", path: "/gateway/model", icon: "appstore" },
-  { name: "menu.gatewayUsage", path: "/gateway/usage", icon: "file-text" },
-  { name: "menu.paymentBilling", path: "/payment/billing", icon: "pay-circle" },
-  { name: "menu.memberInvite", path: "/member/invite", icon: "team" },
-  { name: "menu.accountProfile", path: "/account/profile", icon: "user" },
+  { name: "menu.gatewayKey", path: "/gateway/key", icon: "idcard", group: "menu.group.api" },
+  { name: "menu.gatewayModel", path: "/gateway/model", icon: "appstore", group: "menu.group.api" },
+  { name: "menu.gatewayUsage", path: "/gateway/usage", icon: "file-text", group: "menu.group.api" },
+  { name: "menu.paymentBilling", path: "/payment/billing", icon: "pay-circle", group: "menu.group.account" },
+  { name: "menu.memberInvite", path: "/member/invite", icon: "team", group: "menu.group.account" },
 ];
 
 /**
- * 二级页面：有入口、但不进侧栏 —— 从别的页面或右上角个人菜单点进去。
+ * 二级页面：有入口、但不进侧栏 —— 从别的页面或侧栏底部账号菜单点进去。
  * harness S52 把这里与 consoleNav 一起当作「入口」：漏登记的页面仍然会被判成隐形页，
  * 所以新增一个只从页面内跳转的页面时，要在这里写明它从哪进。
  */
 export const consoleSubPages: Array<{ path: string; from: string }> = [
-  { path: "/account/password", from: "右上角个人菜单「修改密码」、个人资料 → 登录密码" }, // i18n-exempt: 入口说明给 harness 与开发者看，不上界面
+  { path: "/account/profile", from: "侧栏底部账号菜单「个人资料」" }, // i18n-exempt: 入口说明给 harness 与开发者看，不上界面
+  { path: "/account/password", from: "侧栏底部账号菜单「修改密码」、个人资料 → 登录密码" }, // i18n-exempt: 入口说明给 harness 与开发者看，不上界面
   { path: "/account/email", from: "个人资料 → 邮箱「绑定 / 修改」" }, // i18n-exempt: 入口说明给 harness 与开发者看，不上界面
   { path: "/account/mobile", from: "个人资料 → 手机号「绑定 / 修改」" }, // i18n-exempt: 入口说明给 harness 与开发者看，不上界面
 ];
