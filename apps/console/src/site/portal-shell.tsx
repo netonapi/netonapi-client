@@ -1,5 +1,6 @@
 import { copyrightYear } from "./copyright-year";
 import { serverI18n } from "./server-i18n";
+import { renderSiteSlot } from "./slots";
 import { PublicUserMenu } from "./user-menu";
 import type { PortalShellProps } from "./shell-types";
 
@@ -18,7 +19,10 @@ export default async function PortalShell({ children, brand, locale }: PortalShe
       <header className="border-b border-[var(--border)]">
         <div className="mx-auto flex h-14 max-w-[1200px] items-center justify-between px-4">
           <a href="/" className="text-lg font-semibold">{brand.name}</a>
-          <PublicUserMenu />
+          <div className="flex items-center gap-2">
+            {renderSiteSlot("public.header.actions", { locale })}
+            <PublicUserMenu />
+          </div>
         </div>
       </header>
       <main id="main" className="mx-auto w-full max-w-[1200px] flex-1 px-4 py-6">{children}</main>

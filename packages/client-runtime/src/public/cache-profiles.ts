@@ -29,24 +29,18 @@ export type PublicCacheProfileName = keyof typeof PUBLIC_CACHE_PROFILES;
 /** 会渲染媒体地址的档位（状态页没有图片，不受签名有效期约束）。 */
 const MEDIA_PROFILES: PublicCacheProfileName[] = ["object", "list", "static"];
 
+/** 档位的 stale 下限是 30 秒（Next 预渲染规则）：有效期短于 60 秒时 revalidate 只能低于 stale，页面缓存名存实亡。 */
+export const MIN_SUPPORTED_MEDIA_VALIDITY = 60;
+
 /**
- * infra 的 CDN 地址策略开启了鉴权（签名有时效，infra-media §7.3）时，缓存的 HTML 不能比签名活得久：
- * 每个会渲染媒体的档位 `revalidate ≤ 签名有效期 / 2`。启动（next.config 加载）时校验，不满足直接失败。
- * 超过 revalidate 之后的 stale-while-revalidate 窗口里给出的旧页面，由客户端的图片兜底刷新（同节）。
+ * 还没取到后端策略时（启动后的头几秒、后端暂时连不上）假定的有效期：按最短的受支持值收紧，宁可多渲染几次，
+ * 不让缓存的 HTML 比图片签名活得久。取到策略后按真实值放开。
  */
-export function assertCacheFitsMediaValidity(validitySeconds: number | undefined, profiles: Record<string, CacheProfile> = PUBLIC_CACHE_PROFILES): void {
-  if (validitySeconds === undefined) return;
-  if (!Number.isFinite(validitySeconds) || validitySeconds <= 0) throw new Error(`[site] media.signedUrlValiditySeconds must be a positive number, got ${validitySeconds}`);
-  for (const name of MEDIA_PROFILES) {
-    const profile = profiles[name];
-    if (profile && profile.revalidate > validitySeconds / 2) {
-      throw new Error(`[site] cache profile "${name}" revalidates after ${profile.revalidate}s, longer than half the signed media URL validity (${validitySeconds}s): cached HTML would outlive its image signatures`);
-    }
-  }
-}
+export const PENDING_MEDIA_VALIDITY = 2 * MIN_SUPPORTED_MEDIA_VALIDITY;
 
 const MEDIA_VALIDITY = Symbol.for("neton.client.site.media-validity");
-type ValidityHolder = { [MEDIA_VALIDITY]?: number };
+/** `undefined` 键不存在 = 还不知道；`null` = 媒体地址不过期；数字 = 有效期（秒）。 */
+type ValidityHolder = { [MEDIA_VALIDITY]?: number | null };
 
 /** 进程级共享对象（与已删除集合同理：proxy 与渲染上下文拿到的是同一个 `process`）。 */
 function validityHolder(): ValidityHolder {
@@ -54,26 +48,34 @@ function validityHolder(): ValidityHolder {
 }
 
 /**
- * 运行期生效的签名有效期（秒）：启动时与后端 `GET /app/infra/media/policy` 交叉校验后设置
- * （public-server/media-policy.ts，取站点配置与后端两者中较短的一个）。undefined = 媒体地址不过期。
+ * 运行期生效的签名有效期（秒），唯一来源是后端 `GET /app/infra/media/policy`（public-server/media-policy.ts 启动时读取，
+ * infra-media §7.3）：`null` = 媒体地址不过期（`public` 策略，或没有签名地址进公开 HTML）。站点配置里不再有这个值——
+ * 两处配置同一个数只会不一致。
  */
-export function setEffectiveMediaValidity(seconds: number | undefined): void {
-  if (seconds !== undefined && (!Number.isFinite(seconds) || seconds <= 0)) throw new Error(`[site] invalid media validity ${seconds}`);
+export function setEffectiveMediaValidity(seconds: number | null): void {
+  if (seconds !== null && (!Number.isFinite(seconds) || seconds <= 0)) throw new Error(`[site] invalid media validity ${seconds}`);
   validityHolder()[MEDIA_VALIDITY] = seconds;
 }
 
-export function effectiveMediaValidity(): number | undefined {
+/** 回到「还不知道」（测试用；服务从不需要忘记已取到的策略）。 */
+export function resetEffectiveMediaValidity(): void {
+  delete validityHolder()[MEDIA_VALIDITY];
+}
+
+/** 已知的有效期：数字、`null`（不过期），还没取到策略时 `undefined`。 */
+export function effectiveMediaValidity(): number | null | undefined {
   return validityHolder()[MEDIA_VALIDITY];
 }
 
 /**
- * 把会渲染媒体的档位收紧到「revalidate ≤ 有效期 / 2」（纯函数）。构建期的 [assertCacheFitsMediaValidity]
- * 保证站点配置与档位一致；这里兜住运行期才发现的不一致（后端的签名有效期比站点配置短）。
+ * 把会渲染媒体的档位收紧到「revalidate ≤ 有效期 / 2」（纯函数）：缓存的 HTML 不能比其中的图片签名活得久。
+ * `null` = 不过期，不收紧；`undefined` = 还不知道，按 [PENDING_MEDIA_VALIDITY] 收紧。
+ * 超过 revalidate 之后的 stale-while-revalidate 窗口里给出的旧页面，由客户端的图片兜底刷新（infra-media §7.3）。
  */
-export function clampProfileToMedia(name: PublicCacheProfileName, validitySeconds: number | undefined): CacheProfile {
+export function clampProfileToMedia(name: PublicCacheProfileName, validitySeconds: number | null | undefined): CacheProfile {
   const profile: CacheProfile = PUBLIC_CACHE_PROFILES[name];
-  if (validitySeconds === undefined || !MEDIA_PROFILES.includes(name)) return profile;
-  const limit = Math.max(1, Math.floor(validitySeconds / 2));
+  if (validitySeconds === null || !MEDIA_PROFILES.includes(name)) return profile;
+  const limit = Math.max(1, Math.floor((validitySeconds ?? PENDING_MEDIA_VALIDITY) / 2));
   return profile.revalidate <= limit ? profile : { ...profile, revalidate: limit };
 }
 

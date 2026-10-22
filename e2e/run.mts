@@ -299,8 +299,9 @@ async function suite(c: Ctx) {
     assert.equal(c.backendHits("/app/fixture/item/abc"), before);
   });
 
-  await check("410: ledger entries synced at startup answer 410 on the first visit; signed ledger requests", async () => {
+  await check("startup: signed ready signal to the site module; ledger entries synced at startup answer 410 on the first visit", async () => {
     assert.ok(c.backend.goneRequests.length >= 1 && c.backend.goneRequests.every((r) => r.ok), "the gone ledger was requested with a valid signature");
+    assert.ok(c.backend.readySignals.length >= 1 && c.backend.readySignals.every((r) => r.ok && r.body === "{}"), "the portal announced itself ready to the site module at startup (signed)");
     const r = await c.html("/item/9");
     assert.equal(r.status, 410);
     assert.equal(r.headers.get("x-robots-tag"), "noindex");
@@ -470,6 +471,7 @@ async function suite(c: Ctx) {
     assert.match(text, /data-testid="bar-action" data-id="1"/);
     const stars = [...text.matchAll(/data-testid="star" data-id="(\d+)" data-status="([a-z]+)" data-starred="(true|false)"/g)].map((m) => [m[1], m[2], m[3]]);
     assert.deepEqual(stars, [["2", "idle", "false"], ["3", "idle", "false"], ["4", "idle", "false"], ["5", "idle", "false"]], "islands render the fallback on the server");
+    assert.match(text, /data-testid="header-slot" data-locale="zh-CN" data-session="loading"/, "public.header.actions renders in the shell, anonymous first frame");
     assert.match(text, /<meta name="neton-route" content="fixture.item"\/?>/);
     assert.match(text, /<meta name="neton-route-pattern" content="\/item\/:id"\/?>/);
   });
@@ -516,11 +518,17 @@ async function suite(c: Ctx) {
       await page.fill("#password", USER.password);
       await Promise.all([page.waitForURL((u) => u.pathname === "/item/1", { timeout: 15_000 }), page.click('button[type="submit"]')]);
       await page.waitForFunction(() => [...document.querySelectorAll('[data-testid="star"]')].every((e) => e.getAttribute("data-status") === "ready"), undefined, { timeout: 10_000 });
+      await page.waitForSelector('[data-testid="header-slot"][data-session="authenticated"]', { state: "attached", timeout: 10_000 });
       const calls = c.backend.stateCalls.slice(before);
       assert.equal(calls.length, 1, `one batched call, got ${JSON.stringify(calls)}`);
       assert.deepEqual([...calls[0]!].sort(), ["2", "3", "4", "5"]);
       const starred = await page.$$eval('[data-testid="star"]', (els) => els.map((e) => [e.getAttribute("data-id"), e.getAttribute("data-starred")]));
       assert.deepEqual(starred, [["2", "false"], ["3", "true"], ["4", "false"], ["5", "true"]]);
+      // 控制台页头的 console.header.actions：同一个岛，按需加载，外面同样有会话水合
+      await page.goto(`${c.BASE}/my`);
+      await page.waitForSelector('header [data-testid="header-slot"][data-session="authenticated"]', { state: "attached", timeout: 15_000 });
+      // 控制台首页 console.home：模块的概览卡片按需加载进首页，替代底座的「已装配模块」空状态
+      await page.waitForSelector('[data-console-home] [data-testid="console-overview"]', { timeout: 15_000 });
       await context.close();
     });
 

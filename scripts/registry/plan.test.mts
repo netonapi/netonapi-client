@@ -150,3 +150,16 @@ test("locale loaders live apart from console page loaders, so public server code
   assert.match(modules, /import\("@neton\/application-client-account\/pages\/profile"\)/);
   assert.match(modules, /export \{ localeRegistry \} from "\.\/locales\.generated";/);
 });
+
+test("console slots are client islands loaded on demand from the console registry, never bundled into the portal", () => {
+  const badge = { id: "filter.badge", entry: "badge", rendering: "client" as const };
+  const withBadge: FrontModuleManifest = { ...filter, slots: [{ ...badge, target: "public.header.actions" }, { ...badge, target: "console.header.actions" }] };
+  const out = plan(input({ modules: [{ pkg: "p", manifest: withBadge }] }));
+  assert.deepEqual(out.errors, []);
+  const pub = out.files["src/generated/public.generated.tsx"]!;
+  assert.equal((pub.match(/import Slot\d+ from "p\/slots\/badge"/g) ?? []).length, 1, "only the portal contribution is a static import");
+  assert.doesNotMatch(pub, /console\.header\.actions/);
+  assert.match(out.files["src/generated/modules.generated.ts"]!, /"target":"console\.header\.actions".*load: \(\) => import\("p\/slots\/badge"\)/);
+  const server = plan(input({ modules: [{ pkg: "p", manifest: { ...filter, slots: [{ ...badge, rendering: "server", target: "console.header.actions" }] } }] }));
+  assert.ok(server.errors.some((e) => /console slots must be rendering "client"/.test(e)));
+});

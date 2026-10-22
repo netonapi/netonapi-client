@@ -8,8 +8,8 @@
  * 3. 宿主自己的源码（apps/console/src，含 fork 的门户外壳与页面）同样不得硬编码中文；词条放进
  *    `console`（控制台、登录注册）或 `site`（门户）命名空间。
  * 4. 还没有声明 `locales` 的模块列为待迁移，只告警不失败 —— 迁移逐个模块推进，已迁移的不允许倒退。
- * 5. 模块的公开页客户端岛（模块源码里 `"use client"` 的文件，控制台页面 `pages/` 除外）只能用公开 key
- *    （`public.*`、`error.*`）：公开页的 HTML 只预载这部分词条（public-routes §12）。
+ * 5. 模块的公开页客户端岛（模块源码里 `"use client"` 的文件，控制台页面 `pages/` 与只贡献给控制台插槽 `console.*`
+ *    的插槽文件除外）只能用公开 key（`public.*`、`error.*`）：公开页的 HTML 只预载这部分词条（public-routes §12）。
  *
  * 测试文件（`*.test.*`、`__tests__/`、`__fixtures__/`）不检查：断言里写中文是在验证译文。
  */
@@ -120,9 +120,17 @@ for (const pkg of packages) {
   checkNamespace(manifest.id, catalog);
   for (const f of sources) for (const hit of hardcodedCjk(f)) errors.push(`[${manifest.id}] 已声明语言包，但源码仍有硬编码文案 ${hit}`);
   const consolePages = path.join(srcDir, "pages") + path.sep;
+  // 只出现在控制台插槽里的插槽入口（控制台加载整份语言包）；同时贡献给门户插槽的（如「回复我的」红点）仍按公开岛检查
+  const slotTargets = new Map<string, string[]>();
+  for (const slot of manifest.slots ?? []) slotTargets.set(slot.entry, [...(slotTargets.get(slot.entry) ?? []), slot.target]);
+  const consoleOnlySlots = new Set([...slotTargets].filter(([, targets]) => targets.every((t) => t.startsWith("console."))).map(([entry]) => entry));
+  const isConsoleOnlySlot = (f: string) => {
+    const rel = path.relative(path.join(srcDir, "slots"), f);
+    return !rel.startsWith("..") && consoleOnlySlots.has(rel.replace(/\.tsx?$/, ""));
+  };
   const reference = Object.values(catalog)[0] ?? {};
   for (const f of sources) {
-    if (f.startsWith(consolePages)) continue;
+    if (f.startsWith(consolePages) || isConsoleOnlySlot(f)) continue;
     for (const key of clientIslandKeys(f, manifest.id)) {
       const where = path.relative(srcDir, f);
       if (!PUBLIC_KEY.test(key)) errors.push(`[${manifest.id}] 公开页客户端岛用了非公开 key "${key}"（${where}）：改名为 public.* / error.*，公开页只预载这两类`);

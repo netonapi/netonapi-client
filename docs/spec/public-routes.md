@@ -104,7 +104,6 @@ export default defineSite({
   robots: { disallow: ["/search"], deadLinkFile: true },
   verification: { google: "", baidu: "", bing: "" },   // 输出为 <meta name="…-site-verification">
   feeds: { site: { title: "site.feed.title" } },       // 词条 key（命名空间 site）
-  media: { signedUrlValiditySeconds: 3600 },            // 开启 CDN 鉴权时填，见 §8.1 与 infra-media §7.3
   vitals: { endpoint: "/api/site/vitals", sampleRate: 0.1 },  // 真实用户 Web Vitals 上报（§10.7），不填 = 不上报
   // anonymousPaths: ["/pricing"],                      // 只用于控制台在根路径的产品（§2.1b）
 });
@@ -290,6 +289,7 @@ interface PublicSeo {
 App Router 的页面只能产出 404（`notFound()`）与重定向，不能产出 410。底座的做法：
 
 - `goneAware` 路由由底座的 `proxy.ts`（Next 16 的请求代理）先查**已删除 URL 集合**，命中即由 proxy 直接返回 410：一份生成期按站点语言写好的独立静态 HTML（`<meta name="robots" content="noindex">` + `X-Robots-Tag: noindex`，文案取宿主 `site` 命名空间的 `status.gone.*`，缓存一天），不进入页面渲染。不用「改写到内部 410 页面 + 状态码」：C1 实测 Next 16 不保证改写后的响应带上 proxy 给的状态码（同一 URL 时而 410 时而 200）。
+- **失效目标就绪（site-module §6.0，产品决定 2）**：Next 服务启动时（以及已删除集合的同步从失败恢复时）向后端发签名的 `POST /platform/site/target/ready`（payload = 原始请求体 `{}`；多实例可设 `NETON_SITE_REVALIDATE_TARGET` 只唤醒自己），后端把积压的失效投递立即重排、清零退避，下一个投递节拍就按顺序合并补投——重启不再等退避窗口（后端退避上限也降到 60 秒）。启动时按 1–60 秒退避重试直到成功；后端没装 site 模块或没配密钥时记一次日志后停止（运行时 `signalSiteReady`，底座端到端测试断言启动后收到一次签名正确的信号）。
 - 集合的来源是服务端 site 模块的已删除台账：失效端点收到 `gone` 条目时加入（§8.5）；Next 服务启动时、以及每 10 分钟，从后端 `GET /platform/site/gone?since=` 增量同步（签名鉴权，site-module §6）。
 - 多实例部署时集合放在共享缓存里（`setGoneStore()` 换实现，与 §8.6 的共享缓存同一处）；单实例放进程内，挂在 `process` 对象上：proxy 跑在自己的上下文里，能读到主上下文 `globalThis` 上已有的属性，自己写上去的属性主上下文却看不到（C1 实测：proxy 先访问时两边各建一份，集合分裂），`process` 是两边共享的同一个对象。
 - 站点配置 `robots.deadLinkFile = true` 时集合同时输出为 `/sitemaps/gone.txt`（§11.5）。
@@ -317,7 +317,7 @@ App Router 的页面只能产出 404（`notFound()`）与重定向，不能产�
 - **CDN 的 `Cache-Control` 由 Next 生成**：整页里**最短**的档位决定 `s-maxage = revalidate`、`stale-while-revalidate = expire − revalidate`（例：首页 `s-maxage=30, stale-while-revalidate=3570`）。不另写一张 CDN 头的表：两套时长迟早不一致。revalidate 刻意短——没有 CDN 主动刷新时，它就是 CDN 层的新鲜度上限；事件驱动的失效（§8.4）才是主路径。Route Handler（sitemap、RSS、robots）用 `cacheControlFor(档位)` 输出同一形式。
 - 不输出 `stale-if-error`：渲染失败时 Next 自己继续给旧缓存；CDN 侧按产品的 CDN 配置开启回源失败给旧内容。
 - Next 的预渲染规则：stale ≥ 30 秒、expire ≥ 5 分钟，否则被排除出预渲染、变成请求期的动态洞，整页缓存不成立——档位都满足这两条。
-- **与签名媒体地址的约束（产品决定 1）**：infra 的 CDN 地址策略开启鉴权时（infra-media §7.3），站点配置 `media.signedUrlValiditySeconds` 必须与后端一致；`object` / `list` / `static` 的 revalidate 必须 ≤ 有效期 / 2，`resolveSite()` 在构建与启动时校验，不满足直接失败。超过 revalidate 之后的 stale-while-revalidate 窗口里给出的旧页面，以及长时间打开的标签页，由客户端的图片兜底刷新（infra-media §7.3）。
+- **与签名媒体地址的约束（产品决定 1；C4 改为单一来源）**：签名有效期的唯一来源是后端的部署配置（infra-media §7.3 的 `GET /app/infra/media/policy`），站点配置不重复它（C3 的站点 3600 与开发后端 600 不一致告警就出在两处各配一个数）。`object` / `list` / `static` 的 revalidate 在运行期经 `cacheProfile()` 收紧到 ≤ 有效期 / 2；取到策略之前按最短的受支持有效期（120 秒，即 revalidate ≤ 60 秒）收紧；有效期为 null（稳定地址）不收紧；后端的有效期短于 60 秒时记错误 `site.media.policy.invalid`（档位 stale 下限 30 秒，页面缓存名存实亡）。超过 revalidate 之后的 stale-while-revalidate 窗口里给出的旧页面，以及长时间打开的标签页，由客户端的图片兜底刷新（infra-media §7.3）。
 - 控制台与 `/api/*` 恒为 `private, no-store`；页面渲染时不得读当前时间（版权年份等用 `"use cache"` 包成缓存单元）。
 
 ### 8.2 缓存安全
@@ -442,7 +442,7 @@ src/app/(public)/(site)/…            生成：fork 页面的路由文件（不
 src/app/(public)/(modules)/…         生成：模块公开路由与模块 feed（不入库）
 ```
 
-- `PortalShell` 的入参：`{ children, brand, locale, origin, consoleBasePath }`（`shell-types.ts`）。导航由外壳自己在服务端取（`"use cache"`，打 `site:nav` 标签）；用户菜单是客户端岛。外壳随每个公开页缓存，不读请求（构建期扫描覆盖它）；当前导航项在水合后由客户端标记 `aria-current`。
+- `PortalShell` 的入参：`{ children, brand, locale, origin, consoleBasePath }`（`shell-types.ts`）。导航由外壳自己在服务端取（`"use cache"`，打 `site:nav` 标签）；用户菜单是客户端岛（`<PublicUserMenu links>`：会员中心、外壳给的常用控制台入口——`links` 是 `{ label: site 命名空间词条, path: 控制台内路径 }`，如「我的收藏」「我的足迹」——与退出）。外壳随每个公开页缓存，不读请求（构建期扫描覆盖它）；当前导航项在水合后由客户端标记 `aria-current`。
 - fork 的公开页面用同一套运行时能力（`definePublicPage`，与 `definePublicRoute` 相同的 load / seo / Page 结构；命名空间 `site`），在站点配置 `pages` 里声明（key `site.<名称>`），遵守同样的禁止项与冲突检查。
 
 ### 10.2 插槽
@@ -459,9 +459,11 @@ src/app/(public)/(modules)/…         生成：模块公开路由与模块 feed
 | `public.object.aside` | 对象详情页 | `{ ref, summary }` | 同栏目最新、作者其他文章 |
 | `public.object.bar` | 对象详情页（C3） | `{ ref, summary }` | 手机吸底条（< 768 px，滚动时收起，与 App 详情页底部工具栏同形）：写评论 + 评论数（comment）、收藏（interaction）、分享（content）。桌面端不显示；详情页负责容器与显隐，贡献方只给按钮 |
 | `console.header.actions` | 底座（控制台） | — | 「回复我的」红点 |
+| `console.home` | 底座（控制台首页，C4） | — | 模块的概览卡片：未读回复（comment）、收藏与足迹（interaction）、投稿状态（content）。首页按 `slots.order["console.home"]` 排成两列网格，每张卡片按需加载、各自取数、各自出错；没有贡献时首页列出已装配的模块 |
 
 - `summary` 是对象详情里取到的对外信息（`capabilities`、计数、`link.web`），贡献方据 `capability` 过滤，**不能**拿它代替后端的授权检查。
 - 渲染方式：`server` 是服务端组件，自己负责缓存（`"use cache"` + 标签）；`client` 是客户端岛（`"use client"`，首屏按匿名态渲染）。「服务端出首屏（可收录）+ 客户端接管交互」就是一个 server 组件里渲染一个以服务端数据为初始值的 client 组件，不单列 `hybrid`。
+- **不针对对象的插槽**（`public.header.actions`、`console.header.actions`、`console.home`）入参只有 `SiteSlotProps = { locale }`。门户里由外壳调用 `renderSiteSlot("public.header.actions", { locale })`（`src/site/slots.tsx`；fork 的外壳必须调用它，否则模块的页头贡献不出现），随每个公开页缓存，客户端岛首帧按匿名态。控制台里由页头（`ConsoleHeaderActions`）渲染：`console.*` 贡献**只能是客户端岛**，注册表生成脚本把它们写进 `modules.generated.ts` 的 `consoleSlotRegistry`（按需 `import()`），不进门户的 `public.generated.tsx`；外面同样挂 `PublicSessionProvider`（多一次 `/api/session`），所以同一个组件（如「回复我的」红点）可以同时贡献给门户与控制台。底座端到端测试的夹具模块两处都挂了一个读会话的岛并断言。
 - 贡献方的入参（运行时导出类型）：`ClientSlotProps = { objectRef, summary, locale }`；`ServerSlotProps` 另有 `site` 与 `href(routeKey, params)`（与页面 `ctx.href` 相同，贡献方互链不写死 URL）。客户端岛拿不到 `href`：需要的链接由 server 贡献算好作为 props 传下去。
 - `summary` 里的对外计数 `commentCount`、`favoriteCount`、`viewCount`（可选）由拥有对象的模块在详情里给出，缓存时效内允许滞后；贡献方只用来显示，实时数在水合后自己取。
 - 一个插槽里多个贡献按站点配置 `slots.order[target]` 列出的顺序在前，其余按 `order`（缺省 100）再按 id；`slots.hide` 隐藏。server 贡献抛错时记日志、渲染为空；client 贡献包在错误边界里。都不让整页 500。
@@ -491,7 +493,7 @@ type PublicMedia = { fileId: string; url: string; mimeType?: string | null; widt
 | 加载器 | 可替换：fork 覆盖 `src/site/media-loader.ts`（与 `portal-shell.tsx` 同一规则），由 `public-runtime` 在加载时 `setMediaLoader()`。地址仍由后端生成，网页端不能自己拼签名 |
 | 过期兜底 | 公开外框在 `<body>` 开头输出一段不依赖 React 的内联脚本（`MEDIA_REFRESH_SCRIPT`）：捕获阶段监听 `error`，对带 `data-neton-media` 的图片调一次 `GET /api/backend/app/infra/media/url/{fileId}?variant=`，去掉 `srcset` 换上新地址；每张图只重试一次 |
 | 分享图 | `shareImageUrl(media)`：有 `og` 规格用它（1200×675），否则原图 |
-| 运行期交叉校验 | 服务启动时读 `GET /app/infra/media/policy`（`{ strategy, validitySeconds, bucketSeconds, imageParams }`），与站点配置 `media.signedUrlValiditySeconds` 不一致即记错误日志 `site.media.policy.mismatch`，并以较短者为准：会渲染媒体的档位（object / list / static）经 `cacheProfile()` 收紧到 `revalidate ≤ 有效期 / 2`；后端暂时连不上时按退避重试，在那之前按站点配置运行 |
+| 有效期 | 服务启动时读 `GET /app/infra/media/policy`（`{ strategy, validitySeconds, bucketSeconds, imageParams }`），记 `site.media.policy.applied`；会渲染媒体的档位（object / list / static）经 `cacheProfile()` 收紧到 `revalidate ≤ 有效期 / 2`。策略 `none`（没有 CDN）时后端如实报告中转地址短期签名的有效期（会员可见内容的图片），约束照样生效、不告警。后端暂时连不上时按退避重试，在那之前按 120 秒收紧 |
 
 私密媒体（会员可见、仅本人、临时文件）永不出现在公开 HTML 里：后端对匿名访问者不给出它们的地址，公开页在服务端也拿不到。
 

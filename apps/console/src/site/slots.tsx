@@ -1,5 +1,5 @@
 import * as React from "react";
-import { selectSlotContributions, type ClientSlotProps, type ObjectRef, type ObjectSummary, type PublicSeoContext, type ServerSlotProps } from "@neton/application-client-runtime/public";
+import { selectSlotContributions, type ClientSlotProps, type ObjectRef, type ObjectSummary, type PublicSeoContext, type ServerSlotProps, type SiteSlotProps } from "@neton/application-client-runtime/public";
 import { slotRegistry } from "@/generated/public.generated";
 import { site } from "@/generated/site.generated";
 import { ClientSlotBoundary } from "./slot-boundary";
@@ -25,6 +25,31 @@ export function renderSlot(target: string, props: { objectRef: ObjectRef; summar
 async function ServerSlot({ id, Component, props }: { id: string; Component: React.ComponentType<any>; props: ServerSlotProps }) {
   try {
     return await (Component as (p: ServerSlotProps) => React.ReactNode | Promise<React.ReactNode>)(props);
+  } catch (error) {
+    console.error(`[site] slot ${id} failed: ${error instanceof Error ? error.message : String(error)}`);
+    return null;
+  }
+}
+
+/**
+ * 不针对对象的门户插槽（`public.header.actions`）：外壳调用，贡献方只拿到语言（`SiteSlotProps`）。
+ * 客户端贡献包在错误边界里；服务端贡献抛错时渲染为空。声明了 capability / objectTypes 的贡献不会出现在这里。
+ */
+export function renderSiteSlot(target: "public.header.actions", { locale }: { locale: string }) {
+  const selected = selectSlotContributions(target, slotRegistry.map((s) => s.contribution), {}, site.slots);
+  if (!selected.length) return null;
+  return selected.map((contribution) => {
+    const entry = slotRegistry.find((s) => s.contribution === contribution)!;
+    const props: SiteSlotProps = { locale };
+    return contribution.rendering === "server"
+      ? <ServerSiteSlot key={contribution.id} id={contribution.id} Component={entry.Component} props={props} />
+      : <ClientSlotBoundary key={contribution.id} id={contribution.id}><entry.Component {...props} /></ClientSlotBoundary>;
+  });
+}
+
+async function ServerSiteSlot({ id, Component, props }: { id: string; Component: React.ComponentType<any>; props: SiteSlotProps }) {
+  try {
+    return await (Component as (p: SiteSlotProps) => React.ReactNode | Promise<React.ReactNode>)(props);
   } catch (error) {
     console.error(`[site] slot ${id} failed: ${error instanceof Error ? error.message : String(error)}`);
     return null;

@@ -91,6 +91,8 @@ export interface MockBackend {
   refreshed: string[];
   /** `POST /app/fixture/state`（访问者状态，§9.4）每次调用带的 id 列表 */
   stateCalls: string[][];
+  /** 收到的「失效目标就绪」信号（site-module §6.0）的签名校验结果与请求体 */
+  readySignals: { ok: boolean; body: string }[];
   close(): Promise<void>;
 }
 
@@ -109,6 +111,7 @@ export async function startMockBackend(options: { port: number; secret: string }
   const goneRequests: MockBackend["goneRequests"] = [];
   const refreshed: string[] = [];
   const stateCalls: string[][] = [];
+  const readySignals: MockBackend["readySignals"] = [];
   const base = `http://127.0.0.1:${options.port}`;
   const images = new Map<string, Buffer>();
 
@@ -204,6 +207,14 @@ export async function startMockBackend(options: { port: number; secret: string }
       return ok(res, { list, nextCursor: null, now: Date.now() });
     }
 
+    if (path === "/platform/site/target/ready" && req.method === "POST") {
+      const raw = await new Promise<string>((resolve) => { let data = ""; req.on("data", (c) => { data += c; }); req.on("end", () => resolve(data)); });
+      const valid = verify(req.headers["x-neton-signature"] as string | undefined, raw, options.secret);
+      readySignals.push({ ok: valid, body: raw });
+      if (!valid) return fail(res, 401, 10001, "SIGNATURE_INVALID");
+      return ok(res, { targets: ["portal"], rescheduled: 0 });
+    }
+
     if (path === "/app/fixture/state" && req.method === "POST") {
       if (req.headers.authorization !== `Bearer ${USER.token}`) return fail(res, 401, 10000, "AUTH_REQUIRED");
       const ids = ((await body(req)).ids as string[] | undefined) ?? [];
@@ -233,6 +244,7 @@ export async function startMockBackend(options: { port: number; secret: string }
     goneRequests,
     refreshed,
     stateCalls,
+    readySignals,
     close: () => new Promise<void>((resolve) => { server.closeAllConnections(); server.close(() => resolve()); }),
   };
 }

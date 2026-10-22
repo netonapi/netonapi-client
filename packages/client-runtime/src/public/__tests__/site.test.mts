@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { assertCacheFitsMediaValidity, PUBLIC_CACHE_PROFILES } from "../cache-profiles";
 import { reservedPrefixes, resolveSite, robotsDisallow } from "../site";
 
 const base = { origin: "https://www.example.com", consoleBasePath: "/my", locales: { default: "zh-CN", supported: ["zh-CN"], prefix: "none" as const } };
@@ -20,13 +19,6 @@ test("resolveSite rejects broken configuration", () => {
   assert.throws(() => resolveSite({ ...base, auth: { loginMethods: [] } }), /loginMethods/);
   assert.throws(() => resolveSite({ ...base, auth: { defaultCallingCode: "86" } }), /CallingCode/);
   assert.throws(() => resolveSite({ ...base, timeZone: "Mars/Olympus" }), /timeZone/);
-});
-
-test("cache must not outlive signed media URLs", () => {
-  assert.doesNotThrow(() => assertCacheFitsMediaValidity(undefined));
-  assert.doesNotThrow(() => assertCacheFitsMediaValidity(PUBLIC_CACHE_PROFILES.static.revalidate * 2));
-  assert.throws(() => assertCacheFitsMediaValidity(PUBLIC_CACHE_PROFILES.static.revalidate), /half the signed media URL validity/);
-  assert.throws(() => resolveSite({ ...base, media: { signedUrlValiditySeconds: 120 } }), /half/);
 });
 
 test("reserved prefixes and robots follow the console prefix", () => {

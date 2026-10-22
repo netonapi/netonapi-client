@@ -90,6 +90,14 @@ export interface ClientSlotProps {
   locale: string;
 }
 
+/**
+ * 不针对对象的插槽（`public.header.actions`、`console.header.actions`）的入参：只有语言。
+ * 门户里由外壳渲染（随每个公开页缓存，客户端岛首帧按匿名态），控制台里由控制台页头按需加载。
+ */
+export interface SiteSlotProps {
+  locale: string;
+}
+
 /** 服务端插槽贡献的入参：多了站点信息与按站点配置生成路径的 `href`（与页面 ctx.href 相同）。 */
 export interface ServerSlotProps extends ClientSlotProps {
   site: PublicSiteInfo;

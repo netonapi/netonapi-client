@@ -3,7 +3,6 @@
  * 运行期只读生成物——同一份规则只有一处实现。
  */
 import type { LoginMethod, SiteConfig, SitePageDeclaration, SiteRouteInstance } from "@neton/application-client-contract";
-import { assertCacheFitsMediaValidity } from "./cache-profiles";
 import { normalizeConsoleBasePath } from "./next-path";
 import { parsePattern, patternsConflict, patternUnderPrefix, RoutePatternError } from "./route-pattern";
 
@@ -22,7 +21,6 @@ export interface ResolvedSite {
   robots: { disallow: string[]; deadLinkFile: boolean };
   verification: { google?: string; baidu?: string; bing?: string };
   feeds: { site?: { title: string } };
-  media: { signedUrlValiditySeconds?: number };
   /** 控制台在根路径时不需要会话的页面形态（§2.1b）；有门户时恒为空。 */
   anonymousPaths: string[];
   /** 真实用户 Web Vitals 上报（§10.7）；null = 不上报。 */
@@ -67,8 +65,6 @@ export function resolveSite(config: SiteConfig, env: Record<string, string | und
   if (!CALLING_CODE.test(defaultCallingCode)) throw new SiteConfigError(`auth.defaultCallingCode must look like "+86": ${defaultCallingCode}`);
   const timeZone = config.timeZone ?? "Asia/Shanghai";
   try { new Intl.DateTimeFormat("en", { timeZone }); } catch { throw new SiteConfigError(`timeZone is not a valid IANA zone: ${timeZone}`); }
-  const media = { signedUrlValiditySeconds: config.media?.signedUrlValiditySeconds };
-  assertCacheFitsMediaValidity(media.signedUrlValiditySeconds);
   const anonymousPaths = resolveAnonymousPaths(config.anonymousPaths ?? [], consoleBasePath);
   const vitals = resolveVitals(config.vitals);
   return {
@@ -90,7 +86,6 @@ export function resolveSite(config: SiteConfig, env: Record<string, string | und
     robots: { disallow: [...(config.robots?.disallow ?? [])], deadLinkFile: config.robots?.deadLinkFile ?? false },
     verification: { ...(config.verification ?? {}) },
     feeds: { ...(config.feeds ?? {}) },
-    media,
     anonymousPaths,
     vitals,
   };

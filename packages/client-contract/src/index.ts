@@ -136,6 +136,7 @@ export const BASE_SLOT_TARGETS = [
   "public.object.aside",
   "public.object.bar",
   "console.header.actions",
+  "console.home",
 ] as const;
 
 export interface SlotContribution {
@@ -241,13 +242,6 @@ export interface SiteConfig {
    * `endpoint`：站内路径（如底座自带的 "/api/site/vitals"）或绝对 https 地址；`sampleRate`：0–1，按页面浏览抽样。
    */
   vitals?: { endpoint: string; sampleRate: number };
-  media?: {
-    /**
-     * 后端 infra 的 CDN 地址策略开启鉴权时的签名有效期（秒），与后端配置一致（infra-media §7.3）。
-     * 填了就在启动时校验：会渲染媒体的缓存档位 revalidate ≤ 有效期 / 2。未开启鉴权不填。
-     */
-    signedUrlValiditySeconds?: number;
-  };
 }
 
 export function defineSite(config: SiteConfig): SiteConfig {

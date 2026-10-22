@@ -15,7 +15,6 @@ export default defineSite({
   robots: { disallow: ["/find"], deadLinkFile: true },
   verification: { google: "g-fixture", baidu: "b-fixture", bing: "m-fixture" },
   feeds: { site: { title: "feed.site.title" } },
-  media: { signedUrlValiditySeconds: 3600 },
   // 真实用户 Web Vitals：全部抽样，上报到底座自带的收集端点（e2e 把日志写到临时文件）
   vitals: { endpoint: "/api/site/vitals", sampleRate: 1 },
 });

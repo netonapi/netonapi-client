@@ -6,5 +6,6 @@ export * from "./i18n";
 export * from "./revalidate";
 export * from "./route";
 export * from "./signature";
+export * from "./site-ready";
 export * from "./media-policy";
 export * from "./vitals";

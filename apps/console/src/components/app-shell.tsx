@@ -30,6 +30,7 @@ import {
   CreditCard,
   Database,
   FileText,
+  History,
   Home,
   IdCard,
   LogIn,
@@ -50,6 +51,7 @@ import {
   Share2,
   ShieldCheck,
   Smartphone,
+  Star,
   Sun,
   UserRound,
   UsersRound,
@@ -64,6 +66,7 @@ import { cn } from "@neton/application-client-kit";
 import { memberInitial } from "@neton/application-client-runtime/types";
 import { useT } from "@neton/application-client-runtime/i18n";
 import { BrandMark } from "./brand-mark";
+import { ConsoleHeaderActions } from "./console-header-actions";
 import { LocaleSwitcher } from "./locale-switcher";
 import { useSiteBrand } from "./site-brand";
 
@@ -96,6 +99,8 @@ const iconMap: Record<string, LucideIcon> = {
   "pay-circle": CreditCard,
   appstore: Boxes,
   database: Database,
+  star: Star,
+  history: History,
 };
 
 function resolveIcon(value?: string | null): LucideIcon {
@@ -689,6 +694,7 @@ export function AppShell({
           </div>
 
           <div className="ml-auto flex items-center gap-1.5">
+            <ConsoleHeaderActions />
             <button
               type="button"
               aria-label={t("search.open")}

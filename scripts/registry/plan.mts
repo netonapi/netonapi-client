@@ -368,6 +368,8 @@ export function plan(input: PlanInput): PlanOutput {
       if (!slot.id.startsWith(`${manifest.id}.`)) fail(`${pkg} slot id "${slot.id}" must start with "${manifest.id}."`);
       if (!targets.has(slot.target)) fail(`${pkg} slot ${slot.id} targets undeclared slot "${slot.target}"`);
       if (slot.rendering !== "server" && slot.rendering !== "client") fail(`${pkg} slot ${slot.id}: rendering must be "server" or "client"`);
+      // 控制台是客户端工作区：控制台插槽只能是客户端岛（按需加载，不进门户的包）
+      if (slot.target.startsWith("console.") && slot.rendering !== "client") fail(`${pkg} slot ${slot.id}: console slots must be rendering "client"`);
       const uid = `${slot.target}#${slot.id}`;
       if (slotIds.has(uid)) fail(`duplicate slot contribution ${slot.id} in ${slot.target}`);
       slotIds.add(uid);
@@ -448,6 +450,10 @@ export function plan(input: PlanInput): PlanOutput {
   }
   const pageEntries = modules.flatMap(({ pkg, manifest }) =>
     manifest.pages.map((p) => `  ${JSON.stringify(p.key)}: () => import(${JSON.stringify(`${pkg}/pages/${p.entry}`)}),`));
+  const consoleSlotEntries = slotEntries.filter((s) => s.target.startsWith("console.")).map((s) => {
+    const contribution = modules.flatMap((m) => m.manifest.slots ?? []).find((c) => c.id === s.id && c.target === s.target)!;
+    return `  { contribution: ${JSON.stringify(contribution)}, load: () => import(${JSON.stringify(s.specifier)}) },`;
+  });
   files["src/generated/modules.generated.ts"] = `${HEADER}import type { FrontModuleManifest } from "@neton/application-client-contract";
 import type * as React from "react";
 
@@ -457,6 +463,11 @@ export const installedModules: FrontModuleManifest[] = ${JSON.stringify(modules.
 export const pageRegistry: Record<string, () => Promise<{ default: React.ComponentType }>> = {
 ${pageEntries.join("\n")}
 };
+
+/** 控制台插槽（\`console.*\`，客户端岛，按需加载）。 */
+export const consoleSlotRegistry: { contribution: import("@neton/application-client-contract").SlotContribution; load: () => Promise<{ default: React.ComponentType<{ locale: string }> }> }[] = [
+${consoleSlotEntries.join("\n")}
+];
 
 export { localeRegistry } from "./locales.generated";
 `;
@@ -492,7 +503,8 @@ export const proxyConfig: PublicProxyConfig = ${JSON.stringify({
 
   const imports: string[] = [];
   const slotLines: string[] = [];
-  slotEntries.forEach((s, i) => {
+  // 控制台插槽不进门户：它们在 modules.generated.ts 里按需加载
+  slotEntries.filter((s) => !s.target.startsWith("console.")).forEach((s, i) => {
     imports.push(`import Slot${i} from ${JSON.stringify(s.specifier)};`);
     const contribution = modules.flatMap((m) => m.manifest.slots ?? []).find((c) => c.id === s.id && c.target === s.target)!;
     slotLines.push(`  { contribution: ${JSON.stringify(contribution)}, Component: Slot${i} },`);

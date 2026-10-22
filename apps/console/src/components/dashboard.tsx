@@ -1,53 +1,68 @@
 "use client";
 
-import { AppWindow, ShieldCheck, Sparkles } from "lucide-react";
+import * as React from "react";
+import { AppWindow } from "lucide-react";
 import { useSession } from "@neton/application-client-runtime/client-context";
-import { useT } from "@neton/application-client-runtime/i18n";
-import { installedModules } from "@/generated/modules.generated";
+import { useLocale, useT } from "@neton/application-client-runtime/i18n";
+import { selectSlotContributions } from "@neton/application-client-runtime/public";
+import { consoleSlotRegistry, installedModules } from "@/generated/modules.generated";
+import { site } from "@/generated/site.generated";
+import { ClientSlotBoundary } from "@/site/slot-boundary";
 
+// 与其它插槽同一套排序与隐藏规则；每个贡献按需加载一次（模块作用域：首页重渲染不重复创建懒组件）
+const widgets = selectSlotContributions("console.home", consoleSlotRegistry.map((s) => s.contribution), {}, site.slots)
+  .map((contribution) => ({ id: contribution.id, Component: React.lazy(consoleSlotRegistry.find((s) => s.contribution === contribution)!.load) }));
+
+/**
+ * 控制台首页（public-routes §10.2 `console.home`）：问候 + 各模块的概览卡片（未读回复、最近收藏、投稿状态……），
+ * 每张卡片是模块的客户端岛，按需加载、各自取数、各自出错（错误边界只让它自己消失）。没有模块贡献概览时
+ * 列出已装配的模块（底座自带的空控制台）。
+ */
 export default function Dashboard() {
   const { user } = useSession();
+  const { locale } = useLocale();
   const t = useT("console");
   const hour = new Date().getHours();
   const greeting = hour < 6 ? t("dashboard.greetingNight") : hour < 12 ? t("dashboard.greetingMorning") : hour < 18 ? t("dashboard.greetingAfternoon") : t("dashboard.greetingEvening");
 
   return (
     <div className="space-y-5">
-      <section className="front-surface relative overflow-hidden rounded-xl px-6 py-7 md:px-8 md:py-9">
-        <div className="absolute -right-14 -top-20 h-64 w-64 rounded-full border-[34px] border-[var(--foreground)]/[0.035]" />
-        <span className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--muted)] px-3 py-1.5 text-[10px] font-semibold tracking-[0.14em] text-[var(--primary)]">
-          <Sparkles size={12} /> CONSOLE OVERVIEW
-        </span>
-        <h1 className="mt-5 text-2xl font-semibold tracking-[-0.03em] text-[var(--foreground)] md:text-3xl">
+      <section className="front-surface rounded-xl px-6 py-6 md:px-8">
+        <h1 className="text-xl font-semibold tracking-[-0.02em] text-[var(--foreground)] md:text-2xl">
           {t("dashboard.greeting", { greeting, name: user.nickname || user.username })}
         </h1>
-        <p className="mt-3 max-w-xl text-sm leading-6 text-[var(--muted-foreground)]">
-          {t("dashboard.ready")}
-        </p>
+        <p className="mt-2 text-sm text-[var(--muted-foreground)]">{widgets.length ? t("dashboard.overview") : t("dashboard.ready")}</p>
       </section>
 
-      <section className="front-surface rounded-xl p-5 md:p-6">
-        <h2 className="text-base font-bold text-[var(--foreground)]">{t("dashboard.distribution")}</h2>
-        <p className="mt-1 text-xs text-[var(--muted-foreground)]">{t("dashboard.distributionNote", { count: installedModules.length })}</p>
-        <div className="mt-5 space-y-3">
-          {installedModules.length === 0 && (
-            <div className="rounded-xl border border-dashed border-[var(--border)] p-4 text-xs text-[var(--muted-foreground)]">
-              {t("dashboard.noModules")}
-            </div>
-          )}
-          {installedModules.map((module) => (
-            <div key={module.id} className="flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--card)] px-4 py-3">
-              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--primary)] text-white"><AppWindow size={16} /></span>
-              <span className="min-w-0 flex-1"><span className="block truncate text-xs font-bold text-[var(--foreground)]">{module.id}</span><span className="block text-xs text-[var(--muted-foreground)]">contract {module.contractVersion}</span></span>
-              <span className="h-2 w-2 rounded-full bg-[var(--primary)]" />
-            </div>
+      {widgets.length ? (
+        <div className="grid gap-5 lg:grid-cols-2" data-console-home="">
+          {widgets.map(({ id, Component }) => (
+            <ClientSlotBoundary key={id} id={id}>
+              <React.Suspense fallback={<div className="front-surface h-40 animate-pulse rounded-xl" aria-hidden />}>
+                <Component locale={locale} />
+              </React.Suspense>
+            </ClientSlotBoundary>
           ))}
         </div>
-        <div className="mt-5 flex items-start gap-3 rounded-xl bg-[var(--primary-soft)] p-4 text-xs leading-5 text-[var(--muted-foreground)]">
-          <ShieldCheck size={16} className="mt-0.5 shrink-0 text-[var(--primary)]" />
-          {t("dashboard.session")}
-        </div>
-      </section>
+      ) : (
+        <section className="front-surface rounded-xl p-5 md:p-6">
+          <h2 className="text-base font-bold text-[var(--foreground)]">{t("dashboard.distribution")}</h2>
+          <p className="mt-1 text-xs text-[var(--muted-foreground)]">{t("dashboard.distributionNote", { count: installedModules.length })}</p>
+          <div className="mt-5 space-y-3">
+            {installedModules.length === 0 && (
+              <div className="rounded-xl border border-dashed border-[var(--border)] p-4 text-xs text-[var(--muted-foreground)]">
+                {t("dashboard.noModules")}
+              </div>
+            )}
+            {installedModules.map((module) => (
+              <div key={module.id} className="flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--card)] px-4 py-3">
+                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--primary)] text-white"><AppWindow size={16} /></span>
+                <span className="min-w-0 flex-1"><span className="block truncate text-xs font-bold text-[var(--foreground)]">{module.id}</span><span className="block text-xs text-[var(--muted-foreground)]">contract {module.contractVersion}</span></span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

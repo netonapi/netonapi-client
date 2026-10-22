@@ -23,6 +23,8 @@ export interface GoneSyncOptions {
   store?: GoneStore;
   fetch?: typeof fetch;
   log?: (event: string, detail?: Record<string, unknown>) => void;
+  /** 同步从失败转为成功时调用（与后端的连接恢复了）：网页服务用它再发一次「失效目标就绪」信号。 */
+  onRecovered?: () => void;
 }
 
 export async function syncGoneOnce(since: number, options: GoneSyncOptions): Promise<number> {
@@ -56,12 +58,15 @@ export function startGoneSync(options: GoneSyncOptions): () => void {
   let since = 0;
   let stopped = false;
   let reportedUnavailable = false;
+  let failing = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
   const run = async () => {
     try {
       since = await syncGoneOnce(since, options);
       reportedUnavailable = false;
+      if (failing) { failing = false; options.onRecovered?.(); }
     } catch (error) {
+      failing = true;
       const message = error instanceof Error ? error.message : String(error);
       if (message === "ROUTE_NOT_FOUND") {
         if (!reportedUnavailable) log("site.gone.sync.unavailable", { reason: "site module not installed" });

@@ -22,6 +22,9 @@ export default defineFrontModule({
   slots: [
     { target: "public.object.after", id: "fixture.related", entry: "related", rendering: "server", objectTypes: ["fixture.item"] },
     { target: "public.object.bar", id: "fixture.bar", entry: "bar", rendering: "server", objectTypes: ["fixture.item"] },
+    { target: "public.header.actions", id: "fixture.header", entry: "header", rendering: "client" },
+    { target: "console.header.actions", id: "fixture.header", entry: "header", rendering: "client" },
+    { target: "console.home", id: "fixture.overview", entry: "overview", rendering: "client" },
   ],
   cardRenderers: [{ objectType: "fixture.item", entry: "item" }],
   sitemaps: [{ id: "fixture", entry: "items", news: true }],
