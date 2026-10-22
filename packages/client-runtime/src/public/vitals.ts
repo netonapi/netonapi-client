@@ -118,7 +118,7 @@ export function vitalsReport(all: readonly VitalsSample[], options: { minSamples
   for (const s of all) latest.set(`${s.id}\u0000${s.name}`, s);
   const samples = [...latest.values()];
   const minSamples = options.minSamples ?? 50;
-  const thresholds = options.thresholds ?? VITALS_P75_THRESHOLDS;
+  const thresholds = { ...VITALS_P75_THRESHOLDS, ...options.thresholds };
   const groups = new Map<string, { group: string; device: DeviceClass | "all"; name: VitalName; values: number[] }>();
   const add = (group: string, device: DeviceClass | "all", s: VitalsSample) => {
     const key = `${group}\u0000${device}\u0000${s.name}`;
@@ -154,8 +154,11 @@ export function formatVital(name: VitalName, value: number | null): string {
   return name === "CLS" ? value.toFixed(3) : `${Math.round(value)} ms`;
 }
 
-/** 从日志里挑出样本行：一行一个 JSON；允许前面有日志前缀（取第一个 `{` 起的部分），其余行忽略。 */
-export function parseVitalsLog(text: string, options: { since?: number } = {}): VitalsSample[] {
+/**
+ * 从日志里挑出样本行：一行一个 JSON；允许前面有日志前缀（取第一个 `{` 起的部分），其余行忽略。
+ * 时间窗 `[since, until)`（epoch 毫秒，按样本的 `ts`）：上线后一周的现场验收按窗口取样本。
+ */
+export function parseVitalsLog(text: string, options: { since?: number; until?: number } = {}): VitalsSample[] {
   const out: VitalsSample[] = [];
   for (const line of text.split("\n")) {
     const start = line.indexOf("{\"type\":\"web-vital\"");
@@ -164,6 +167,7 @@ export function parseVitalsLog(text: string, options: { since?: number } = {}): 
       const s = JSON.parse(line.slice(start)) as VitalsSample;
       if (s.type !== "web-vital" || !oneOf(VITAL_NAMES, s.name) || typeof s.value !== "number" || !oneOf(DEVICE_CLASSES, s.device)) continue;
       if (options.since && s.ts < options.since) continue;
+      if (options.until && s.ts >= options.until) continue;
       out.push(s);
     } catch { /* 不是样本行 */ }
   }

@@ -242,6 +242,11 @@ export interface SiteConfig {
    * `endpoint`：站内路径（如底座自带的 "/api/site/vitals"）或绝对 https 地址；`sampleRate`：0–1，按页面浏览抽样。
    */
   vitals?: { endpoint: string; sampleRate: number };
+  /**
+   * 热点页面预热（public-routes §8.7）：启动时、`expire` 失效之后由服务自己先请求一遍，第一个真实访客不必等渲染。
+   * 站内路径（不在保留前缀里、不带查询串），≤ 20 个。缺省：有门户时 `["/"]`，控制台在根路径时为空。
+   */
+  warmup?: { paths: string[] };
 }
 
 export function defineSite(config: SiteConfig): SiteConfig {

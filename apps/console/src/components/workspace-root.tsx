@@ -3,10 +3,10 @@
 import * as React from "react";
 import {
   WorkspaceLabelsProvider,
-  WorkspaceStore,
   WorkspaceStoreProvider,
   buildWorkspacePages,
   createBrowserHistoryHost,
+  instanceTitle,
   type WorkspaceLabels,
   type WorkspacePage,
   type WorkspaceUiAdapter,
@@ -15,6 +15,7 @@ import { KitNavigationProvider, PortalHostProvider } from "@neton/application-cl
 import type { NavItem } from "@neton/application-client-runtime/menu";
 import type { SessionUser } from "@neton/application-client-runtime/client-context";
 import { useT } from "@neton/application-client-runtime/i18n";
+import { SinglePageWorkspaceStore } from "@neton/application-client-runtime/single-page-store";
 import { installedModules, pageRegistry } from "@/generated/modules.generated";
 import { AppShell } from "@/components/app-shell";
 import { consoleNav } from "@/config/console.nav";
@@ -40,9 +41,9 @@ function homePage(title: string): WorkspacePage {
 /**
  * 工作区根。
  *
- * 与 admin 线共用同一个工作区运行时；差别只在会话来源：C 端没有后端菜单与 RBAC，
- * 页签标题取侧栏名（consoleNav），其次 manifest 的 `title`，最后才是路径末段；导航是产品自己的静态
- * [consoleNav]。
+ * 与 admin 线共用同一个工作区运行时，但用单实例模式（没有页签，见 shadcn dashboard 式外壳 app-shell.tsx）；
+ * C 端没有后端菜单与 RBAC，页面标题取侧栏名（consoleNav），其次 manifest 的 `title`，最后才是路径末段；
+ * 导航是产品自己的静态 [consoleNav]。
  */
 export function WorkspaceRoot({ user, basePath }: { user: SessionUser; basePath: string }) {
   const t = useT("console");
@@ -70,14 +71,17 @@ export function WorkspaceRoot({ user, basePath }: { user: SessionUser; basePath:
     return [homePage(t("title.home")), ...buildWorkspacePages(modules, pageRegistry, Object.fromEntries(nav.map((item) => [item.path, item.name])))];
   }, [t, nav]);
 
-  const [store] = React.useState(() => new WorkspaceStore({
+  // 确认文案随语言变化，store 只创建一次：经 ref 取最新的
+  const labelsRef = React.useRef({ confirmLeaveDirty: (title: string) => t("workspace.confirmLeaveDirty", { title }) });
+  labelsRef.current = { confirmLeaveDirty: (title: string) => t("workspace.confirmLeaveDirty", { title }) };
+
+  // 用户端没有页签：同一时刻只有一个页面，打开别的页面就替换它；有未保存内容时先确认
+  const [store] = React.useState(() => new SinglePageWorkspaceStore({
     pages,
     // 控制台挂在 consoleBasePath 下（门户产品如 /my）；工作区内部地址不带前缀
     host: createBrowserHistoryHost({ basePath }),
     homeHref: "/",
-    pinHome: true,
-    // 按身份域 + 用户隔离：换人登录不会恢复出上一个人的页签（评审 R19）。
-    persist: { scope: `account:${user.userId}` },
+    confirmLeave: (instance) => window.confirm(labelsRef.current.confirmLeaveDirty(instanceTitle(instance))),
   }));
 
   React.useEffect(() => {

@@ -11,9 +11,13 @@
     "test": "tsx --test \"scripts/**/*.test.mts\" && pnpm --filter @neton/application-client-runtime test",
     "e2e": "tsx e2e/run.mts",
     "lighthouse": "tsx scripts/lighthouse.mts",
-    "vitals:report": "tsx scripts/vitals-report.mts"
+    "vitals:report": "tsx scripts/vitals-report.mts",
+    "cdn:rules": "tsx scripts/cdn-rules.mts",
+    "structured-data": "tsx scripts/structured-data.mts"
   },
   "devDependencies": {
+    "@adobe/structured-data-validator": "^1.7.0",
+    "@marbec/web-auto-extractor": "^2.2.1",
     "@neton/application-client-contract": "workspace:*",
     "@neton/application-client-runtime": "workspace:*",
     "@types/node": "^26.6.5",

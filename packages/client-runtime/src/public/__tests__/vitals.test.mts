@@ -79,4 +79,6 @@ test("log parsing: sample lines with or without a log prefix, everything else ig
   const text = [`2026-10-22 [info] ${a}`, "random line", "{\"type\":\"other\"}", b, "{\"type\":\"web-vital\",broken"].join("\n");
   assert.equal(parseVitalsLog(text).length, 2);
   assert.equal(parseVitalsLog(text, { since: 15 }).length, 1);
+  assert.equal(parseVitalsLog(text, { until: 15 }).length, parseVitalsLog(text).length - 1, "until is exclusive");
+  assert.equal(parseVitalsLog(text, { since: 0, until: 1 }).length, 0);
 });

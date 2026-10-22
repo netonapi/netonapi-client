@@ -1,7 +1,7 @@
 # 公开路由契约：匿名可缓存的 SSR 页面
 
 > 标识：NETON-APP-CLIENT-PUBLIC
-> 日期：2026-10-22 · 状态：**Accepted r4**（C3 补充：`ObjectStateBatcher` §9.4、`public.object.bar` §10.2、`anonymousPaths` §2.1b、性能门禁口径 §10.6、真实用户 Web Vitals §10.7；C2 补充：密封构建 §1b、部署约束 §2.1a、媒体图片 §10.4、样式表分离 §10.5、底座端到端测试 §15；C1 已实现：契约 1.1.0、注册表生成、渲染管线、SEO 元数据、404 / 410 / 308、缓存档位与标签、失效端点、插槽与卡片、robots / sitemap / RSS 管线、短信登录与 `next` 跳回、控制台前缀；其余分期见 §15）
+> 日期：2026-10-22 · 状态：**Accepted r5**（C5 补充：CDN 缓存规则 §8.2a、热点预热 §8.7、本地结构化数据校验 §6、Lighthouse 门禁的确定性 §10.6、现场 p75 时间窗 §10.7、sitemap 格式的死链文件 §11.5、CI §15；C3 补充：`ObjectStateBatcher` §9.4、`public.object.bar` §10.2、`anonymousPaths` §2.1b、性能门禁口径 §10.6、真实用户 Web Vitals §10.7；C2 补充：密封构建 §1b、部署约束 §2.1a、媒体图片 §10.4、样式表分离 §10.5、底座端到端测试 §15；C1 已实现：契约 1.1.0、注册表生成、渲染管线、SEO 元数据、404 / 410 / 308、缓存档位与标签、失效端点、插槽与卡片、robots / sitemap / RSS 管线、短信登录与 `next` 跳回、控制台前缀；其余分期见 §15）
 > 范围：`neton-application-client` 底座新增「公开路由」贡献点，让模块贡献匿名、可被 CDN 缓存、可被搜索引擎收录的 SSR 页面；产品 fork 提供门户外壳。client-contract 由 1.0.0 升到 **1.1.0**（只增不改）。
 > 关联：
 > - 后台底座规范 `privchat-docs/spec/07-application/NETON_APPLICATION_FRONT_SPEC.md`（模块契约、构建期注册表、RSC 非契约、贡献点）
@@ -260,11 +260,12 @@ interface PublicSeo {
 - **canonical**：缺省 = 当前路径 + 白名单内的规范查询串（带游标的列表页指向自己，不指向第一页）；模块给的相对路径拼站点 `origin` 且去掉查询参数；同站的绝对地址规范成本站地址；异站绝对地址（编辑指定的外站规范链接，如转载指向原文）原样保留。
 - **robots**：页面值与路由 `indexable` 取更严的一方；404 / 410 / `unavailable` 恒为 `noindex`；`max-image-preview:large` 缺省开启（资讯类在搜索结果里的大图依赖它）。
 - **Open Graph / Twitter**：底座由 `openGraph` 同时生成 `og:*` 与 `twitter:card`（有图 `summary_large_image`，否则 `summary`）；`og:site_name`、`og:locale` 自动填。
-- **JSON-LD**：每个对象单独一个 `<script type="application/ld+json">`；底座把 `<`、`>`、`&` 与 U+2028/2029 转义，保证不能闭合脚本标签。运行时提供构造器 `jsonLd.article()`（NewsArticle / Article，headline 截 110 字符）、`breadcrumb()`、`itemList()`、`collectionPage()`、`webPage()`、`person()`、`webSite()`（有搜索路由时带 `SearchAction`）、`organization()`，字段规则写在构造器里，模块不手拼。站点级 `WebSite` 与 `Organization` 由**首页**（fork 页面）用构造器输出——底座不认识哪一页是首页；注册表导出 `searchRoute` 供首页拼 `SearchAction`。
+- **JSON-LD**：每个对象单独一个 `<script type="application/ld+json">`；底座把 `<`、`>`、`&` 与 U+2028/2029 转义，保证不能闭合脚本标签。运行时提供构造器 `jsonLd.article()`（NewsArticle / Article，headline 截 110 字符）、`breadcrumb()`、`itemList({ url, name }[])`（C5：每条带名字——schema.org 的 ListItem 与富媒体校验都要求，只给地址会被判错）、`collectionPage()`、`webPage()`、`person()`、`webSite()`（有搜索路由时带 `SearchAction`）、`organization()`，字段规则写在构造器里，模块不手拼。站点级 `WebSite` 与 `Organization` 由**首页**（fork 页面）用构造器输出——底座不认识哪一页是首页；注册表导出 `searchRoute` 供首页拼 `SearchAction`。
 - **分页**：`pagination` 输出 `<link rel="prev/next">`（React 19 把它提升到 `<head>`）。Google 已不使用它，但百度等仍参考，成本为零。
 - **description** 按字素（`Intl.Segmenter`）截到 160，换行与连续空白压成一个空格；`verification` 的 Bing 输出为 `msvalidate.01`、百度为 `baidu-site-verification`。
 - **RSS 发现**：`alternates.feeds` 输出 `<link rel="alternate" type="application/rss+xml">`；站点 feed 由底座在所有公开页输出。
 - 站点验证（`verification`）输出为对应的 meta 标签。
+- **本地结构化数据校验（C5）**：Rich Results Test 只认公网地址，上线前用同一套规则在本地与 CI 里卡住——`pnpm structured-data <url>…`（`scripts/structured-data/validate.mts`）：@adobe/structured-data-validator 按钉住版本的 schema.org 词表（30.1，首次下载后缓存在 `NETON_SCHEMA_ORG_CACHE`，缺省 `~/.cache/neton`）校验类型与属性，并执行 Google 富媒体结果的规则（BreadcrumbList、ListItem、Organization、Person 等由库内置；Article / NewsArticle / BlogPosting 由底座补的处理器 `news-article.mjs` 执行：headline、绝对地址的 image、带时区的 datePublished、有 name 的 author 必须有，dateModified 缺失或早于发布时间、author 没有 url 记警告）。有 ERROR 退出码 1。底座端到端测试校验夹具首页与对象页，产品 fork（itwind）的端到端测试校验首页、文章、频道、栏目。上线后的外部校验（Rich Results Test、Search Console 的增强功能报告）见产品的部署文档。
 
 ## 7. 状态语义
 
@@ -368,9 +369,34 @@ App Router 的页面只能产出 404（`notFound()`）与重定向，不能产�
 
 服务端先调失效端点、成功后再刷新 CDN（site-module §5.3）。反过来会出现「CDN 已刷新、回源又拿到 Next 里的旧缓存再缓存一轮」。
 
+### 8.2a CDN 缓存规则（C5）
+
+CDN 的配置**由站点配置与公开路由生成**（`pnpm cdn:rules [--text] [--out file]`，运行时 `cdnRules()` / `cdnCacheKey()`），源站已经按它回应，底座端到端测试逐条核对两者一致：
+
+| 规则 | 内容 | 源站这一侧的保证 |
+| --- | --- | --- |
+| 绕过（回源、不缓存、转发 Cookie） | 控制台前缀（`/my`、`/my/*`）、`/api/*`、`/login`、`/register`、`/forgot-password`；控制台在根路径的产品整站绕过 | 都回 `private, no-store`：控制台未登录跳登录的 307 显式带 `private, no-store`（它取决于 Cookie）；登录注册页按请求渲染（`connection()`），不再输出可缓存的头——CDN 配错了也缓存不了它们 |
+| 缓存键 | 路径 + 白名单查询参数（全部公开路由 `query` 的并集，排序）；**忽略 Cookie**；其余参数（`utm_*`、`fbclid`、`gclid`……）剥掉；`Vary` 只认 `Accept-Encoding` | proxy 本来就丢掉白名单外的参数再渲染（§4.3），带不带追踪参数 HTML 逐字节相同；公开页不 `Set-Cookie`、`Vary` 不含 Cookie（§8.2）；Next 的 `Vary: rsc, next-router-*` 只用于客户端路由请求——门户一律整页导航，带 `RSC` 头的请求源站回 400，不进缓存 |
+| 时长 | HTML 遵循源站 `Cache-Control`（`s-maxage` = 档位 revalidate、`stale-while-revalidate` 到 expire，§8.1）；`/_next/static/*` 一年 immutable（文件名带内容哈希）；CDN 开 `stale-if-error`（86400 秒） | 5xx、`private` / `no-store`、带 `Set-Cookie` 的回应不缓存 |
+| 刷新 | site 模块在失效端点投递成功之后按对象地址刷新（site-module §5.2）；列表页靠短 `s-maxage` | 410 页缓存一天，恢复上线时 site 模块刷新 CDN |
+
 ### 8.6 多实例
 
 `revalidateTag` 只作用于本实例的缓存。多实例部署必须配置共享的缓存处理器（`cacheHandlers`，如 Redis），否则失效端点要对每个实例各调一次（site 模块支持配置多个目标，但不推荐）。单实例部署不需要。
+
+### 8.7 热点页面预热（C5）
+
+公开页是「按需渲染 + 整页缓存」，构建期不连后端（§1b）：刚启动的进程里没有缓存；`expire` 失效（撤回、删除、评论被隐藏）之后同理。这时第一个访客要等一次完整渲染——取后端数据 + 渲染，itwind 本机开发后端实测 0.3–3 秒（取决于后端负载）；`refresh` 失效与 TTL 到期走 stale-while-revalidate，不受影响（实测 STALE 回应 < 50 ms）。这是 itwind C4 偶发「FCP = LCP ≈ 2.7 s」的根因（测量撞上了阻塞渲染），也是真实用户在部署后与每次下线操作后会遇到的。
+
+预热让服务自己当第一个访客（`siteWarmer()`，`public-server/warmup.ts`）：
+
+- 站点配置 `warmup: { paths }`（站内路径、不在保留前缀里、≤ 20 个；缺省有门户时 `["/"]`，控制台在根路径时为空）；
+- 启动：等本进程开始监听（探测 `/robots.txt`，它不访问后端），顺序请求一遍，日志 `site.warmup.done` / `site.warmup.partial`；
+- `expire` 失效之后：失效端点调 `scheduleRewarm()`，合并 1.5 秒（盖住 site 模块 1 秒后的 expire 回声）再请求一遍；同一时刻只跑一轮，跑的时候又被要求则结束后再跑一轮；
+- 请求发给本进程自己（`NETON_SITE_SELF_URL`，缺省 `http://localhost:$PORT`），经 proxy、不带 Cookie；失败只记日志，不影响正确性；
+- 只覆盖热点地址：文章详情这类长尾页靠 CDN 命中率与按需渲染。部署时另可用 CDN 预热（site 模块 `[cdn] prefetch`）。
+
+底座端到端测试：启动后第一个访客拿到 `x-nextjs-cache: HIT`；`expire` 一个首页用到的标签 2.5 秒后，首页仍是 HIT。
 
 ## 9. 个性化与水合
 
@@ -538,6 +564,8 @@ type PublicMedia = { fileId: string; url: string; mimeType?: string | null; widt
 | 实验室回归 | `pnpm lighthouse <url>…`（`scripts/lighthouse.mts`） | 移动端预设、**devtools 实际节流**（慢 4G：延迟 562.5 ms、下行 1.47 Mbps、CPU 4×），每个地址 3 次取各指标中位数 | LCP ≤ 2.0 s、CLS ≤ 0.05、TBT ≤ 200 ms；同时报告性能 / SEO / 无障碍分数；`--out` 写 JSON 汇总，超出退出码 1 |
 | 真实用户（最终判据） | 信标 + 收集端点 + `pnpm vitals:report`（§10.7） | p75，按全站与路由形态 × 设备档 | LCP ≤ 2.5 s、INP ≤ 200 ms、CLS ≤ 0.1（Google「good」） |
 
+**确定性（C5）**：`pnpm lighthouse` 在测量前先预热——每个地址 GET 到连续两次 `x-nextjs-cache: HIT`，再跑一次不计入的 Lighthouse（Chrome 与 Next 的静态资源、路由模块都热了）；每次测量前再确认页面在缓存里；测量后从 DevtoolsLog 读主文档的 `x-nextjs-cache`，**不是 HIT 的作废重测**（`MISS` 测的是后端渲染，`STALE` 的后台重渲染与浏览器抢 CPU；最多 `--max-attempts`，缺省次数 × 3），取够 N 次有效测量才算；宿主每核 1 分钟负载超过 `--max-load`（缺省 0.9）时先等它降下来（最多 2 分钟），等不到照测并在报告里标出负载。报告（`--out`）带每次测量的 TTFB、缓存状态、负载与被作废的测量。`--no-warmup` 只用于排查。
+
 Lighthouse 选 devtools 节流的理由：simulate（lantern）由一次不节流的观测推算，把首屏前发起的全部请求都算进 LCP 的依赖链，与浏览器按优先级调度（LCP 图 `fetchpriority=high` 先下）的真实行为不符；devtools 节流让真实浏览器在限速下加载，与真实设备 p75 更接近。simulate 只作趋势参考。Chrome 取 `CHROME_PATH`，否则 Playwright 的 Chromium。底座端到端测试对夹具对象页跑一次（3 次中位数）：LCP 1.28–1.41 s、CLS 0、TBT 63–143 ms、性能 98–100；机器满载时（load average > 80）LCP 实测可到 2.7 s——CPU 4× 降速叠加宿主争用，门禁要在空闲的 CI 机器上跑。
 
 ### 10.7 真实用户 Core Web Vitals（C3）
@@ -549,7 +577,7 @@ Lighthouse 选 devtools 节流的理由：simulate（lantern）由一次不节�
 | 信标 | 公开外框里的客户端组件（`@neton/application-client-runtime/public-vitals`，配置了才渲染）：按页面浏览抽样；页面 `load` 之后、浏览器空闲时才动态加载 `web-vitals`（懒加载块，不计首屏 JS）；收集 LCP、INP、CLS、FCP、TTFB，页面隐藏（`visibilitychange` → hidden、`pagehide`）时把这次浏览的指标一次发出——`navigator.sendBeacon`（`text/plain`，跨源收集服务不触发预检），不支持时 `fetch(keepalive, credentials: omit)` |
 | 上报内容 | `{ v: 1, route, pattern, path, nav, device, conn, metrics: [{ name, value, rating, id }] }`：路由 key 与形态取自页面 `<meta name="neton-route">` / `neton-route-pattern`（公开路由渲染管线输出，站点 404 等为 null），`path` 不含查询串与锚点，`device` 按视口宽度分档（< 768 mobile、< 1200 tablet、其余 desktop），`conn` 是 `effectiveType`。**没有 Cookie、没有任何身份**；缓存的 HTML 不变（信标只在客户端运行） |
 | 收集端点 | 底座自带 `POST /api/site/vitals`（`createVitalsHandler`）：形状、枚举、数值范围全量校验（≤ 4 KB，任何一处不合法整份 400 `VITALS_INVALID`）；按来源地址每分钟 60 份（`X-Forwarded-For` 最右一跳，进程内计数，超出 429 `VITALS_RATE_LIMITED`）；每个指标写一行 `{"type":"web-vital",ts,id,name,value,rating,route,pattern,path,nav,device,conn}` 到 `NETON_SITE_VITALS_LOG`（缺省标准输出）；204、`no-store`；不访问后端。`/api/` 本来就在 robots 的 Disallow 里。产品也可以把 `endpoint` 指向自己的后端或日志服务，格式相同 |
-| 报告与门禁 | `pnpm vitals:report <日志>… [--since] [--min-samples 50] [--json] [--allow-insufficient]`：从日志里挑出样本行（允许前面有日志前缀），同一 `id` + 指标只取最后一次（页面再次隐藏时会重报 CLS / INP）；p75 用最近秩法（CrUX 口径，不插值）；分组 = 全站 × 设备档、路由形态 × 设备档；样本数 ≥ `min-samples` 的组才判定；退出码 0 达标、1 超出门槛、2 全站手机或桌面样本不足 |
+| 报告与门禁 | `pnpm vitals:report <日志>… [--since] [--until] [--days N] [--min-samples 50] [--lcp] [--inp] [--cls] [--json] [--allow-insufficient]`：时间窗 `[since, until)`（C5：上线后一周的现场验收按窗口取样本；`--days 7` = 截至 until 的最近 7 天），门槛缺省是 Google「good」，可以收紧；从日志里挑出样本行（允许前面有日志前缀），同一 `id` + 指标只取最后一次（页面再次隐藏时会重报 CLS / INP）；p75 用最近秩法（CrUX 口径，不插值）；分组 = 全站 × 设备档、路由形态 × 设备档；样本数 ≥ `min-samples` 的组才判定；退出码 0 达标、1 超出门槛、2 全站手机或桌面样本不足 |
 
 底座端到端测试：夹具站点 `sampleRate: 1`，浏览器打开对象页、离开后，日志里有该页的 LCP / FCP / TTFB 行（路由、形态、路径、设备档正确，不含会话令牌），`vitals:report` 算出的 p75 与按最近秩手算一致。
 
@@ -588,7 +616,7 @@ export default defineSitemap({
 
 ### 11.5 死链文件（可选）
 
-站点配置 `robots.deadLinkFile = true` 时输出 `/sitemaps/gone.txt`：已删除 URL 集合（§7.2）的纯文本列表，每行一个绝对地址，供提交到百度资源平台的死链工具。`list` 档缓存。
+站点配置 `robots.deadLinkFile = true` 时输出 `/sitemaps/gone.txt`：已删除 URL 集合（§7.2）的纯文本列表，每行一个绝对地址，供提交到百度资源平台的死链工具；同一内容的 sitemap 格式 `/sitemaps/gone.xml`（C5；百度死链工具两种都收，也可以单独提交到 Search Console 加快 410 的重抓）。两者都不列进 `/sitemap.xml` 索引（索引只放应当收录的地址），`s-maxage=300`。
 
 ## 12. 国际化
 
@@ -628,11 +656,14 @@ export default defineSitemap({
 | P3 | robots / sitemap / RSS 管线；410（proxy + 已删除集合 + 同步客户端）；死链文件；IndexNow 密钥文件；URL 形态回归检查与 legacy 308 | C1 已实现管线；内容的 sitemap / RSS 贡献随 client-content（C2），已删除台账的服务端随 site 模块 S1（C2） |
 | P4（C2） | 密封构建（§1b）；门户 / 控制台样式表分离（§10.5）；媒体图片、过期兜底与签名有效期的运行期交叉校验（§10.4）；底座端到端测试 | **C2 已实现** |
 | P5（C3） | `ObjectStateBatcher`（§9.4）；`public.object.bar` 插槽（§10.2）；控制台在根路径的 `anonymousPaths`（§2.1b）；首屏 JS 路由名合并查询变体；Lighthouse 门禁（devtools 节流）与真实用户 Web Vitals（信标、收集端点、p75 报告，§10.6–10.7） | **C3 已实现** |
+| P6（C5） | CDN 缓存规则（§8.2a，登录注册页与跳登录改为 no-store）；热点预热（§8.7）；Lighthouse 门禁的确定性（§10.6）；本地结构化数据校验（§6）；`itemList` 条目带名字；sitemap 格式的死链文件（§11.5）；现场 p75 时间窗（§10.7）；CI（`.github/workflows/client-ci.yml`：冻结安装、类型检查、单测、夹具端到端含预算与 Lighthouse 门禁、依赖审计；兄弟仓库按 `scripts/ci/dependencies.lock` 精确到提交号检出） | **C5 已实现** |
 | — | 多实例的共享缓存处理器（`cacheHandlers`）与共享的已删除集合 | 扩容时做；第一版单实例 |
 
 C1 验收（itwind-client 真实运行，Playwright 12/12）：首页 HTML 含完整主内容与元数据、首屏不靠客户端取数（只有一次 `/api/session`）；带与不带 Cookie 的 HTML 逐字节一致；未知频道与不合法参数 404、内部 `~q` 段 404、已删除地址 410（noindex）、恢复后 404；失效端点错签 / 无签 401、错标签 400、正确签名 200 且按 eventId 幂等；robots 与 sitemap 索引、分片可用；`/my/account/profile` 未登录 → `/login?next=…` → 短信验证码登录后回到原页；门户页上账密登录回到原页；`next=//evil.example` 被拒、落在控制台首页。底座自身：生成脚本与运行时单测 87 项。
 
 底座端到端测试（C2，`pnpm e2e`，26 项全绿）：夹具模块（`e2e/fixture-module`：无参数列表页 `/`、goneAware 对象页 + legacy 308 + 数据驱动 308、带查询白名单的列表页、dynamic 页、卡片渲染器、带 news 的 sitemap、站点与模块 feed）+ 进程内模拟后端（`e2e/mock-backend.mts`：签名校验的已删除台账、媒体策略与刷新、账密登录）+ 真实 `next build && next start`。覆盖：构建期 0 次后端请求；路由生成；SSR 正文、元数据、站点验证、JSON-LD；404 / 暂时下线 404 + noindex / 参数不合法不打后端；启动同步的台账首访即 410、页面层 gone 先 404 后 410、死链文件；数据驱动与 legacy 308；`~q` 顺序无关、剥 utm、canonical 带白名单、外部访问 `~q` 404；dynamic 恒 200 + noindex；失效端点的签名 / 时间戳 / 字段 / 限额 / 保留路径 / 重复 eventId，refresh 与 expire 对下一次响应的实际效果，gone / revived；缓存命中不打后端；robots、sitemap 索引 / 分片 / news、RSS、IndexNow；站点 404 与控制台守卫；公开页只有门户样式表；浏览器里的登录 `next` 跳回与开放重定向防护（`//evil`、`/\evil`、编码变体、外站、`/api/`）；带路径参数的模块 feed（生成的路由文件过 `next build` 类型检查、参数校验 404）；列表页整页只有一张高优先级图（焦点图与 `priorityFirst` 同时要求时第二张降级）、其后 `eager`、再后懒加载；首屏 JS 预算（§10.6）；过期图片的兜底刷新；带与不带 Cookie 的 HTML 逐字节一致；运行日志无错误。Next 16.4 已知行为：页面里的 `permanentRedirect` 输出两行相同的 `Location`（浏览器只在取值不同时报错），测试按每一行都等于目标校验。
+
+C5 起底座端到端测试 35 项：新增启动预热与 expire 后的重新预热（§8.7）、CDN 规则与源站回应一致（§8.2a：绕过路径 no-store、可缓存页、追踪参数不影响 HTML、RSC 请求不可缓存、静态资源一年 immutable）、本地结构化数据校验（§6）、sitemap 格式的死链文件（§11.5）；Lighthouse 门禁按 §10.6 的确定性规则测量（夹具对象页 LCP 1.30 s、TBT 109 ms、性能 99）。
 
 ## 16. 开放项（已关闭）
 

@@ -15,6 +15,7 @@
     "./messages": "./src/messages.ts",
     "./errors": "./src/errors.ts",
     "./workspace": "./src/workspace.ts",
+    "./single-page-store": "./src/single-page-store.ts",
     "./captcha": "./src/captcha-config.ts",
     "./captcha-widget": "./src/captcha.tsx",
     "./public": "./src/public/index.ts",

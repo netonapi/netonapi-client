@@ -14,3 +14,4 @@ export * from "./site";
 export * from "./media";
 export * from "./media-image";
 export * from "./vitals";
+export * from "./cdn-rules";

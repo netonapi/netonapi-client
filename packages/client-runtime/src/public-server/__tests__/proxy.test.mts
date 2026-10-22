@@ -23,6 +23,7 @@ test("console without a session cookie → 307 to /login?next=", async () => {
   const res = await proxy(req("/my/account/profile?tab=1"));
   assert.equal(res.status, 307);
   assert.equal(res.headers.get("location"), "https://www.example.com/login?next=%2Fmy%2Faccount%2Fprofile%3Ftab%3D1");
+  assert.equal(res.headers.get("cache-control"), "private, no-store", "a cookie-dependent redirect is never cacheable");
 });
 
 test("console with a cookie passes the original address to the layout", async () => {

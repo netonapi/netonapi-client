@@ -209,6 +209,21 @@ async function suite(c: Ctx) {
     assert.deepEqual(baseline.routes, { "fixture.find": "/find", "fixture.front": "/", "fixture.item": "/item/:id", "fixture.list": "/list" });
   });
 
+  await check("warm-up: hot pages are rendered before the first visitor and again right after an expire", async () => {
+    for (let i = 0; i < 60 && !c.serverLog.join("").includes("site.warmup.done"); i += 1) await sleep(250);
+    assert.ok(c.serverLog.join("").includes("site.warmup.done"), "the startup warm-up ran");
+    const first = await c.get("/");
+    await first.text();
+    assert.equal(first.headers.get("x-nextjs-cache"), "HIT", "the first visitor does not wait for a render");
+    // expire 之后下一个请求本该等完整渲染：预热器在合并窗口（1.5 秒）后先把首页渲染好
+    const r = await revalidate(c.BASE, { eventId: "e-warm-1", items: [{ tag: "obj:fixture.item:6", mode: "expire" }] });
+    assert.equal(r.status, 200);
+    await sleep(2_500);
+    const again = await c.get("/");
+    await again.text();
+    assert.equal(again.headers.get("x-nextjs-cache"), "HIT", "re-warmed after the expire");
+  });
+
   await check("home: first request is the complete page (200, SSR content, no App Shell)", async () => {
     const r = await c.html("/");
     assert.equal(r.status, 200);
@@ -267,6 +282,18 @@ async function suite(c: Ctx) {
     assert.match(img, /srcSet="|srcset="/i);
   });
 
+  await check("structured data: home and object pages pass the schema.org vocabulary and Google rich-result rules", async () => {
+    const { validateStructuredData } = await import("../scripts/structured-data/validate.mts");
+    for (const [p, types] of [["/", ["WebSite", "Organization"]], ["/item/1", ["NewsArticle", "BreadcrumbList"]]] as const) {
+      const report = await validateStructuredData((await c.html(p)).text);
+      assert.deepEqual(Object.keys(report.types).sort(), [...types].sort(), p);
+      assert.deepEqual(report.errors, [], `${p}: ${JSON.stringify(report.errors)}`);
+    }
+    // 规则真的在起作用：缺 headline / 日期没有时区的文章被拒
+    const broken = await validateStructuredData(`<script type="application/ld+json">${JSON.stringify({ "@context": "https://schema.org", "@type": "NewsArticle", image: ["https://x.example/a.jpg"], datePublished: "2026-01-01", author: { "@type": "Person", name: "A" } })}</script>`);
+    assert.deepEqual(broken.errors.map((e) => e.fieldNames?.[0]).sort(), ["datePublished", "headline"]);
+  });
+
   await check("list images: one high-priority LCP image per page, the next cards eager, the rest lazy", async () => {
     const { text } = await c.html("/list?sort=old");
     const imgs = [...text.matchAll(/<img [^>]*>/g)].map((m) => m[0]);
@@ -314,6 +341,13 @@ async function suite(c: Ctx) {
     assert.equal((await c.get("/item/8")).status, 410);
     const gone = await (await c.get("/sitemaps/gone.txt")).text();
     assert.ok(gone.includes(`${ORIGIN}/item/8`) && gone.includes(`${ORIGIN}/item/9`), gone);
+    // 同一份集合的 sitemap 格式（百度死链提交两种都收），不进 sitemap 索引
+    const xml = await c.get("/sitemaps/gone.xml");
+    assert.equal(xml.status, 200);
+    assert.match(xml.headers.get("content-type") ?? "", /application\/xml/);
+    const body = await xml.text();
+    assert.ok(body.includes(`<loc>${ORIGIN}/item/8</loc>`) && body.includes(`<loc>${ORIGIN}/item/9</loc>`), body);
+    assert.ok(!(await (await c.get("/sitemap.xml")).text()).includes("gone"), "the dead-link files are not in the sitemap index");
   });
 
   await check("redirects: data-driven 308 and legacy shapes 308 with the query kept", async () => {
@@ -415,6 +449,45 @@ async function suite(c: Ctx) {
     await c.get("/item/5");
     await c.get("/item/5");
     assert.equal(c.backendHits("/app/fixture/item/5"), before);
+  });
+
+  await check("CDN rules: generated rules and the origin's headers agree (bypass, cacheable pages, query key, static assets)", async () => {
+    const { cdnRules, cdnCacheKey } = await import("@neton/application-client-runtime/public");
+    const { site } = await import("../apps/console/src/generated/site.generated.ts");
+    const { proxyConfig } = await import("../apps/console/src/generated/public-proxy.generated.ts");
+    const rules = cdnRules(site, proxyConfig.routes);
+    assert.deepEqual(rules.cacheKey.queryKeep, ["cursor", "q", "sort"]);
+    // 绕过的路径：源站绝不给可缓存的头（CDN 配错了也不会缓存登录页、控制台跳转与接口）
+    for (const p of ["/my", "/my/account/profile", "/api/session", "/login", "/register", "/forgot-password"]) {
+      assert.equal(cdnCacheKey(rules, p), null, `${p} is bypassed`);
+      const r = await c.get(p);
+      await r.arrayBuffer();
+      assert.match(r.headers.get("cache-control") ?? "", /no-store/, `${p} answers no-store (got ${r.headers.get("cache-control")}, ${r.status})`);
+    }
+    // 可缓存的公开页：有 s-maxage、没有 Set-Cookie、Vary 不含 Cookie
+    for (const p of ["/", "/item/1", "/list?cursor=c4"]) {
+      const r = await c.get(p);
+      await r.arrayBuffer();
+      assert.match(r.headers.get("cache-control") ?? "", /s-maxage=\d+/, p);
+      assert.equal(r.headers.get("set-cookie"), null, p);
+      assert.ok(!(r.headers.get("vary") ?? "").toLowerCase().includes("cookie"), p);
+    }
+    // 缓存键剥掉的参数确实不影响 HTML
+    const tracked = "/list?utm_source=x&cursor=c4&fbclid=y&gclid=z";
+    assert.equal(cdnCacheKey(rules, tracked), "/list?cursor=c4");
+    assert.equal((await c.html(tracked)).text, (await c.html("/list?cursor=c4")).text, "tracking parameters do not change the page");
+    // 客户端路由（RSC）请求不会拿到可缓存的回应
+    const rsc = await c.get("/?_rsc=abc", { headers: { RSC: "1" } });
+    await rsc.arrayBuffer();
+    assert.ok(!(rsc.status === 200 && /s-maxage/.test(rsc.headers.get("cache-control") ?? "")), `RSC request answered ${rsc.status} ${rsc.headers.get("cache-control")}`);
+    // 静态资源：内容哈希文件名、一年 immutable
+    const page = await c.html("/");
+    const asset = /\/_next\/static\/[^"]+\.js/.exec(page.text)?.[0];
+    assert.ok(asset, "the page references a static chunk");
+    const a = await c.get(asset);
+    await a.arrayBuffer();
+    assert.match(a.headers.get("cache-control") ?? "", /max-age=31536000/);
+    assert.match(a.headers.get("cache-control") ?? "", /immutable/);
   });
 
   await check("robots.txt, sitemap index, shard, news, RSS and the IndexNow key", async () => {

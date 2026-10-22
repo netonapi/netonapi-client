@@ -81,7 +81,7 @@ export default function RegisterPage() {
 
       <header className="relative z-10 mx-auto flex h-20 w-full max-w-[1280px] items-center justify-between px-5 sm:px-8">
         <div className="flex items-center gap-3">
-          <BrandMark className="h-10 w-10" />
+          <BrandMark className="h-10 w-10 shadow-[0_8px_24px_rgba(37,99,235,0.2)]" />
           <div>
             <div className="text-sm font-semibold tracking-[-0.01em]">{brand.name}</div>
             {brand.tagline && (

@@ -8,6 +8,12 @@ importers:
 
   .:
     devDependencies:
+      '@adobe/structured-data-validator':
+        specifier: ^1.7.0
+        version: 1.7.0
+      '@marbec/web-auto-extractor':
+        specifier: ^2.2.1
+        version: 2.2.1
       '@neton/application-client-contract':
         specifier: workspace:*
         version: link:packages/client-contract
@@ -199,6 +205,10 @@ importers:
         version: 7.0.2
 
 packages:
+
+  '@adobe/structured-data-validator@1.7.0':
+    resolution: {integrity: sha512-7z4MDfbYUBeMW2XyDzcpEh5FtDYaXmuERBCdmeDOkcsrOuLe0NJb97tAKoqoe+qll17fX9C5V8zgU1z+7hIWMg==}
+    engines: {node: '>=18.0.0'}
 
   '@alloc/quick-lru@5.3.0':
     resolution: {integrity: sha512-U4+70Pc5ZS9osnCBCE5Jha/ciHM+Yp+CNMNC/7HvYbNRk1Ldd+f7qO65W5qfhu/TCv+/ozljlXXe9Nj8419DMA==}
@@ -575,6 +585,10 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@marbec/web-auto-extractor@2.2.1':
+    resolution: {integrity: sha512-xfUFMFH9+XoW/0vOknCcGtHSQMpwuzN/udMB1ZM8lHGOPxMlgPj0mAbpCQxdxlZ/BcgRKprVK4FZOL1+O7EO0A==}
+    engines: {node: '>=18.0.0'}
 
   '@neton/application-client-account@file:../../Neton/neton-application-client-account':
     resolution: {directory: ../../Neton/neton-application-client-account, type: directory}
@@ -2401,6 +2415,8 @@ packages:
 
 snapshots:
 
+  '@adobe/structured-data-validator@1.7.0': {}
+
   '@alloc/quick-lru@5.3.0': {}
 
   '@emnapi/runtime@1.11.3':
@@ -2655,6 +2671,8 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.6.0
+
+  '@marbec/web-auto-extractor@2.2.1': {}
 
   '@neton/application-client-account@file:../../Neton/neton-application-client-account(@neton/application-client-contract@packages+client-contract)(@neton/application-client-kit@packages+client-kit)(@neton/application-client-runtime@packages+client-runtime)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
     dependencies:

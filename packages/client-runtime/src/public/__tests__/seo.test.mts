@@ -92,3 +92,11 @@ test("article headlines are truncated by grapheme, never splitting a character",
   assert.equal("dateModified" in b, false, "dateModified is omitted, never faked with the row's updatedAt");
   assert.equal("author" in b, false);
 });
+
+test("itemList entries carry url, name and position (Google summary-page carousel, schema.org ListItem)", () => {
+  const list = jsonLd.itemList([{ url: "https://www.example.com/a/1", name: "One" }, { url: "https://www.example.com/a/2", name: "Two" }]) as { itemListElement: unknown[] };
+  assert.deepEqual(list.itemListElement, [
+    { "@type": "ListItem", position: 1, url: "https://www.example.com/a/1", name: "One" },
+    { "@type": "ListItem", position: 2, url: "https://www.example.com/a/2", name: "Two" },
+  ]);
+});

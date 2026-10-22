@@ -5,6 +5,7 @@ import {
   parseRevalidateRequest,
   recentEvents,
   revalidateSecret,
+  siteWarmer,
   SIGNATURE_HEADER,
   verifySignature,
 } from "@neton/application-client-runtime/public-server";
@@ -18,7 +19,7 @@ const PRIVATE = { "Cache-Control": "private, no-store" };
  * - 鉴权：`X-Neton-Signature: t=…,v1=HMAC-SHA256(secret, t + "." + 原始 body)`，偏差 > 300 秒拒绝；
  * - `refresh` = 先给旧的、后台刷新（上线与更新）；`expire` = 立即过期（下线：撤回的内容不能再被任何人看到）；
  * - `gone` / `revived` 增删已删除集合（410）；按 `eventId` 幂等；
- * - 不访问后端、不渲染页面。部署时只对内网开放（签名是第二道门）。
+ * - 不访问后端、不渲染页面（有 expire 时稍后由预热器重新请求热点页面，不在本请求里）。部署时只对内网开放（签名是第二道门）。
  */
 export async function POST(request: Request) {
   const secret = revalidateSecret();
@@ -37,6 +38,8 @@ export async function POST(request: Request) {
   if (!recentEvents().remember(eventId)) return Response.json({ code: 0, data: { applied: 0, duplicate: true } }, { headers: PRIVATE });
 
   for (const { tag, mode } of items) revalidateTag(tag, mode === "expire" ? { expire: 0 } : "max");
+  // expire 之后下一个请求要等完整渲染：让服务自己先把热点页面渲染好（§8.7；refresh 走 stale-while-revalidate，不需要）
+  if (items.some((i) => i.mode === "expire")) siteWarmer(site.warmup.paths).scheduleRewarm();
   const store = goneStore();
   if (gone.length) await store.add(gone);
   if (revived.length) await store.delete(revived);

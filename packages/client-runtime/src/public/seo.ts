@@ -208,11 +208,15 @@ export const jsonLd = {
     };
   },
 
-  itemList(urls: string[]): Thing {
+  /**
+   * 列表页的条目（Google 轮播的「摘要页」形态：每条 `url` + `position`；带上 `name`，schema.org 的 ListItem
+   * 与富媒体校验都要求条目有名字）。
+   */
+  itemList(items: { url: string; name: string }[]): Thing {
     return {
       "@context": "https://schema.org",
       "@type": "ItemList",
-      itemListElement: urls.map((url, i) => ({ "@type": "ListItem", position: i + 1, url })),
+      itemListElement: items.map((item, i) => ({ "@type": "ListItem", position: i + 1, url: item.url, name: item.name })),
     };
   },
 

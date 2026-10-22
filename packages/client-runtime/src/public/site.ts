@@ -25,6 +25,8 @@ export interface ResolvedSite {
   anonymousPaths: string[];
   /** 真实用户 Web Vitals 上报（§10.7）；null = 不上报。 */
   vitals: { endpoint: string; sampleRate: number } | null;
+  /** 热点页面预热的站内路径（§8.7）。 */
+  warmup: { paths: string[] };
 }
 
 export class SiteConfigError extends Error {
@@ -67,6 +69,7 @@ export function resolveSite(config: SiteConfig, env: Record<string, string | und
   try { new Intl.DateTimeFormat("en", { timeZone }); } catch { throw new SiteConfigError(`timeZone is not a valid IANA zone: ${timeZone}`); }
   const anonymousPaths = resolveAnonymousPaths(config.anonymousPaths ?? [], consoleBasePath);
   const vitals = resolveVitals(config.vitals);
+  const warmup = resolveWarmup(config.warmup, consoleBasePath);
   return {
     origin,
     consoleBasePath,
@@ -88,7 +91,23 @@ export function resolveSite(config: SiteConfig, env: Record<string, string | und
     feeds: { ...(config.feeds ?? {}) },
     anonymousPaths,
     vitals,
+    warmup,
   };
+}
+
+const MAX_WARMUP_PATHS = 20;
+
+/** 预热地址：站内路径、不带查询串与锚点、不在保留前缀里；缺省有门户时只有首页。 */
+function resolveWarmup(warmup: { paths: string[] } | undefined, consoleBasePath: string): ResolvedSite["warmup"] {
+  const paths = warmup?.paths ?? (consoleBasePath ? ["/"] : []);
+  if (paths.length > MAX_WARMUP_PATHS) throw new SiteConfigError(`warmup.paths allows at most ${MAX_WARMUP_PATHS} paths`);
+  const reserved = reservedPrefixes({ consoleBasePath });
+  for (const path of paths) {
+    if (typeof path !== "string" || !/^\/[^?#\s]*$/.test(path) || path.includes("//")) throw new SiteConfigError(`warmup.paths: not a site path: ${String(path)}`);
+    const prefix = reserved.find((p) => path === p || path.startsWith(p.endsWith("/") ? p : `${p}/`));
+    if (prefix) throw new SiteConfigError(`warmup.paths: ${path} is under the reserved prefix ${prefix}`);
+  }
+  return { paths: [...new Set(paths)] };
 }
 
 function resolveAnonymousPaths(paths: readonly string[], consoleBasePath: string): string[] {

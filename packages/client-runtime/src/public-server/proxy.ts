@@ -73,7 +73,10 @@ export function createPublicProxy(config: PublicProxyConfig) {
       : !underAny(pathname, config.nonConsole) && !anonymous.some((pattern) => matchPattern(pattern, pathname));
     if (inConsole) {
       if (!request.cookies.get(SESSION_COOKIE)?.value) {
-        return NextResponse.redirect(new URL(loginHref(`${pathname}${search}`, config.consoleBasePath), request.url), 307);
+        // 跳登录取决于请求有没有会话 Cookie：这个回应绝不能被 CDN 缓存（§8.2a）
+        const redirect = NextResponse.redirect(new URL(loginHref(`${pathname}${search}`, config.consoleBasePath), request.url), 307);
+        redirect.headers.set("Cache-Control", "private, no-store");
+        return redirect;
       }
       const forwarded = new Headers(request.headers);
       forwarded.set(PATHNAME_HEADER, `${pathname}${search}`);
