@@ -1,8 +1,125 @@
 /*
- * 门户专属样式：**产品 fork 覆盖这个文件**（与 portal-shell.tsx 同一规则）。只作用于公开页面
- * （src/site/public.css 导入它），控制台不加载。典型内容：品牌色覆盖门户的设计令牌，如
- *
- *   .brand-portal { --primary: #d7263d; --primary-foreground: #fff; }
- *
- * 底座的缺省为空。
+ * NetonAPI 门户专属样式（产品 fork 覆盖，只作用于公开页面，控制台不加载）。
+ * 首页的 AI 风格装饰：光晕背景、网格、渐变文字、发光描边卡片。颜色走 --ai-* 变量，暗色模式下降低光晕亮度；
+ * 动画在 prefers-reduced-motion 下全部停掉。
  */
+.ai-surface {
+  --ai-violet: #7c3aed;
+  --ai-blue: #2563eb;
+  --ai-cyan: #06b6d4;
+  --ai-glow-opacity: 0.55;
+}
+.dark .ai-surface { --ai-glow-opacity: 0.35; }
+
+/* 首页正文通栏：突破外壳 main 的限宽，光晕铺到视口两边；html 横向 clip（不产生滚动容器，不影响 sticky） */
+html:has(.ai-surface) { overflow-x: clip; }
+.ai-surface { width: 100vw; margin-left: calc(50% - 50vw); }
+
+/* 首屏背景：三团缓慢漂移的光晕 + 渐隐的网格 */
+.ai-hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+.ai-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--foreground) 7%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--foreground) 7%, transparent) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 35%, #000 30%, transparent 75%);
+}
+.ai-orb {
+  position: absolute;
+  z-index: -1;
+  border-radius: 9999px;
+  filter: blur(70px);
+  opacity: var(--ai-glow-opacity);
+  animation: ai-drift 16s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+.ai-orb-1 { width: 420px; height: 420px; left: 8%; top: -120px; background: var(--ai-violet); }
+.ai-orb-2 { width: 360px; height: 360px; right: 6%; top: -60px; background: var(--ai-blue); animation-delay: -5s; }
+.ai-orb-3 { width: 300px; height: 300px; left: 40%; top: 180px; background: var(--ai-cyan); animation-delay: -10s; opacity: calc(var(--ai-glow-opacity) * 0.7); }
+
+@keyframes ai-drift {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  100% { transform: translate3d(30px, 24px, 0) scale(1.08); }
+}
+
+/* 渐变文字：慢速流动 */
+.ai-gradient-text {
+  background-image: linear-gradient(100deg, var(--ai-violet), var(--ai-blue) 40%, var(--ai-cyan) 70%, var(--ai-violet));
+  background-size: 220% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: ai-flow 8s linear infinite;
+}
+@keyframes ai-flow { to { background-position: 220% center; } }
+
+/* 顶部徽标 */
+.ai-badge {
+  background: color-mix(in srgb, var(--ai-violet) 10%, var(--card));
+  border: 1px solid color-mix(in srgb, var(--ai-violet) 30%, transparent);
+  color: color-mix(in srgb, var(--ai-violet) 75%, var(--foreground));
+}
+.ai-badge-dot {
+  background: var(--ai-cyan);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--ai-cyan) 60%, transparent);
+  animation: ai-ping 2.4s ease-out infinite;
+}
+@keyframes ai-ping {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ai-cyan) 60%, transparent); }
+  100% { box-shadow: 0 0 0 10px transparent; }
+}
+
+/* 主按钮：渐变 + 外发光 */
+.ai-button {
+  background-image: linear-gradient(100deg, var(--ai-violet), var(--ai-blue));
+  color: #fff;
+  box-shadow: 0 10px 30px -10px color-mix(in srgb, var(--ai-blue) 70%, transparent);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.ai-button:hover { transform: translateY(-1px); box-shadow: 0 14px 36px -10px color-mix(in srgb, var(--ai-violet) 80%, transparent); }
+
+/* 渐变描边卡片：用双层背景画 1px 渐变边 */
+.ai-card {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--card), var(--card)) padding-box,
+    linear-gradient(135deg, color-mix(in srgb, var(--ai-violet) 45%, var(--border)), var(--border) 40%, color-mix(in srgb, var(--ai-cyan) 40%, var(--border))) border-box;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.ai-card:hover { transform: translateY(-2px); box-shadow: 0 18px 40px -24px color-mix(in srgb, var(--ai-violet) 55%, transparent); }
+.ai-icon {
+  background-image: linear-gradient(135deg, color-mix(in srgb, var(--ai-violet) 18%, transparent), color-mix(in srgb, var(--ai-cyan) 18%, transparent));
+  color: color-mix(in srgb, var(--ai-violet) 80%, var(--foreground));
+}
+
+/* 代码终端窗口 */
+.ai-terminal {
+  background: #0b1020;
+  color: #e2e8f0;
+  box-shadow: 0 30px 80px -30px color-mix(in srgb, var(--ai-blue) 60%, transparent), 0 0 0 1px rgba(148, 163, 184, 0.18);
+}
+.ai-terminal .tok-k { color: #c084fc; }
+.ai-terminal .tok-s { color: #67e8f9; }
+.ai-terminal .tok-f { color: #93c5fd; }
+.ai-terminal .tok-c { color: #64748b; }
+
+/* 结尾号召区块 */
+.ai-cta {
+  background-image:
+    radial-gradient(circle at 15% 20%, color-mix(in srgb, var(--ai-cyan) 45%, transparent), transparent 45%),
+    linear-gradient(110deg, var(--ai-violet), var(--ai-blue));
+  color: #fff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-orb, .ai-gradient-text, .ai-badge-dot { animation: none; }
+  .ai-card, .ai-button { transition: none; }
+}

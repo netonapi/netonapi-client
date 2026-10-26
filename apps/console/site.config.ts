@@ -15,6 +15,9 @@ export default defineSite({
   // 后台「配置管理」的 system.site.name 优先；后端不可达或没配时用这里
   brand: { name: "NetonAPI" },
   auth: { loginMethods: ["password"] },
-  // 产品首页（public-routes §3）：入口 src/site/pages/home.tsx；价格页仍是 (auth) 组的匿名页面，不在控制台前缀下
-  pages: [{ key: "site.home", pattern: "/", entry: "home", cache: "list", indexable: true }],
+  // 产品的公开页面（public-routes §3）：入口在 src/site/pages/，套门户外壳（页头登录状态一致）
+  pages: [
+    { key: "site.home", pattern: "/", entry: "home", cache: "list", indexable: true },
+    { key: "site.pricing", pattern: "/pricing", entry: "pricing", cache: "list", indexable: true },
+  ],
 });

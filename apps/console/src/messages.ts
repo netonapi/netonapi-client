@@ -1,14 +1,11 @@
 /**
- * 控制台宿主的词条（命名空间 `console`）：登录 / 注册 / 找回密码、价格页、外壳与首页。
+ * 控制台宿主的词条（命名空间 `console`）：登录 / 注册 / 找回密码、外壳与首页。
  * 模块页面的词条在各自模块包里。随包静态打入，任何模块加载之前就要用到。
  *
  * - `menu.*`：consoleNav 的 `name` 写的就是这里的 key（见 config/console.nav.ts）；
  * - `title.<页面 key>`：模块 manifest 里 `title` 的译文（页签标题）。
  */
 import type { StaticCatalogs } from "@neton/application-client-runtime/i18n";
-import siteConfig from "../site.config";
-
-export const CONSOLE_NAMESPACE = "console";
 
 export const consoleCatalogs: StaticCatalogs = {
   console: {
@@ -128,25 +125,6 @@ export const consoleCatalogs: StaticCatalogs = {
       "login.smsNotice": "未注册的手机号验证后将自动创建账号。",
       "title.home": "概览",
       "auth.viewPricing": "查看模型价格",
-      "pricing.title": "模型价格",
-      "pricing.login": "登录",
-      "pricing.register": "注册",
-      "pricing.intro": "按实际用量计费，价格以美元 / 每百万 tokens 计；按次计价的模型单独标注。下面就是调用时实际扣费的价格。",
-      "pricing.loadFailed": "价格暂时无法加载，请稍后刷新。",
-      "pricing.empty": "暂无可用模型。",
-      "pricing.colModel": "模型",
-      "pricing.colCapabilities": "能力",
-      "pricing.colInput": "输入 / 1M",
-      "pricing.colOutput": "输出 / 1M",
-      "pricing.colCacheRead": "缓存读取 / 1M",
-      "pricing.colPerRequest": "按次",
-      "pricing.free": "免费",
-      "pricing.tierAbove": "输入超过 {tokens}：${price}",
-      "capability.chat": "对话",
-      "capability.embeddings": "向量",
-      "capability.images": "图像",
-      "capability.audio": "语音",
-      "capability.rerank": "重排",
       "title.account/profile/index": "个人资料",
       "title.account/password/index": "修改密码",
       "title.account/email/index": "绑定邮箱",
@@ -281,25 +259,6 @@ export const consoleCatalogs: StaticCatalogs = {
       "login.smsNotice": "A new account is created automatically for numbers that haven't signed up yet.",
       "title.home": "Overview",
       "auth.viewPricing": "View model pricing",
-      "pricing.title": "Model pricing",
-      "pricing.login": "Sign in",
-      "pricing.register": "Sign up",
-      "pricing.intro": "Billed by actual usage, in US dollars per million tokens; per-request models are marked separately. These are the prices actually charged per call.",
-      "pricing.loadFailed": "Prices couldn't be loaded. Please refresh later.",
-      "pricing.empty": "No models available yet.",
-      "pricing.colModel": "Model",
-      "pricing.colCapabilities": "Capabilities",
-      "pricing.colInput": "Input / 1M",
-      "pricing.colOutput": "Output / 1M",
-      "pricing.colCacheRead": "Cache read / 1M",
-      "pricing.colPerRequest": "Per request",
-      "pricing.free": "Free",
-      "pricing.tierAbove": "Input over {tokens}: ${price}",
-      "capability.chat": "Chat",
-      "capability.embeddings": "Embeddings",
-      "capability.images": "Images",
-      "capability.audio": "Audio",
-      "capability.rerank": "Rerank",
       "title.account/profile/index": "Profile",
       "title.account/password/index": "Change password",
       "title.account/email/index": "Link email",
@@ -320,12 +279,3 @@ export const consoleCatalogs: StaticCatalogs = {
     },
   },
 };
-
-/**
- * 服务端组件（如页面 metadata）用不了 hook：按默认语言取词条。
- * 默认语言 = 站点配置的 locales.default（与登录注册页、控制台同一来源）。
- */
-export function defaultLocaleMessage(key: string): string {
-  const catalog = consoleCatalogs[CONSOLE_NAMESPACE];
-  return catalog[siteConfig.locales.default]?.[key] ?? catalog["zh-CN"][key] ?? key;
-}
