@@ -10,8 +10,8 @@ import { useT } from "@neton/application-client-runtime/i18n";
 export interface UserMenuLink { label: string; path: string }
 
 /**
- * 页头的用户入口（客户端岛）。服务端与水合首帧都渲染「登录」按钮（匿名态，缓存安全）；
- * 拿到会话后换成头像与菜单：会员中心、外壳给的常用入口（[links]，如「我的收藏」「我的足迹」）、退出。
+ * 页头的用户入口（客户端岛）。服务端与水合首帧都渲染「登录 / 注册」（匿名态，缓存安全）；
+ * 拿到会话后换成「进入控制台」与头像菜单：控制台、外壳给的常用入口（[links]）、退出。
  * 登录链接带上当前地址，登录后回到这一页。
  */
 export function PublicUserMenu({ links = [] }: { links?: UserMenuLink[] }) {
@@ -23,10 +23,13 @@ export function PublicUserMenu({ links = [] }: { links?: UserMenuLink[] }) {
 
   if (state.status !== "authenticated") {
     return (
-      <a href={loginHref(here, consoleBasePath)} className="inline-flex h-9 items-center gap-1.5 rounded-full border border-[var(--border)] px-3.5 text-sm font-medium text-[var(--foreground)] transition hover:border-[var(--primary)] hover:text-[var(--primary)]" aria-busy={state.status === "loading"}>
-        <CircleUserRound size={16} aria-hidden />
-        {t("user.login")}
-      </a>
+      <span className="flex items-center gap-2" aria-busy={state.status === "loading"}>
+        <a href={loginHref(here, consoleBasePath)} className="inline-flex h-9 items-center gap-1.5 rounded-full border border-[var(--border)] px-3.5 text-sm font-medium text-[var(--foreground)] transition hover:border-[var(--primary)] hover:text-[var(--primary)]">
+          <CircleUserRound size={16} aria-hidden />
+          {t("user.login")}
+        </a>
+        <a href="/register" className="inline-flex h-9 items-center rounded-full bg-[var(--primary)] px-3.5 text-sm font-medium text-[var(--primary-foreground)] transition hover:opacity-90">{t("user.register")}</a>
+      </span>
     );
   }
 
@@ -37,7 +40,8 @@ export function PublicUserMenu({ links = [] }: { links?: UserMenuLink[] }) {
 
   const { user } = state;
   return (
-    <div className="relative">
+    <div className="relative flex items-center gap-2">
+      <a href={consoleHref("/", consoleBasePath)} className="inline-flex h-9 items-center rounded-full bg-[var(--primary)] px-3.5 text-sm font-medium text-[var(--primary-foreground)] transition hover:opacity-90">{t("user.console")}</a>
       <button type="button" aria-haspopup="menu" aria-expanded={open} aria-label={t("user.menu")} onClick={() => setOpen((v) => !v)}
         className="flex h-9 items-center gap-2 rounded-full border border-[var(--border)] p-1 text-sm font-medium sm:pr-3">
         {user.avatar
@@ -48,7 +52,7 @@ export function PublicUserMenu({ links = [] }: { links?: UserMenuLink[] }) {
         <span className="hidden max-w-[8rem] truncate sm:inline">{user.nickname}</span>
       </button>
       {open && (
-        <div role="menu" className="absolute right-0 z-50 mt-2 w-44 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--card)] py-1 shadow-lg">
+        <div role="menu" className="absolute right-0 top-full z-50 mt-2 w-44 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--card)] py-1 shadow-lg">
           <a role="menuitem" href={consoleHref("/", consoleBasePath)} className="block px-3 py-2 text-sm hover:bg-[var(--muted)]">{t("user.console")}</a>
           {links.map((link) => (
             <a key={link.path} role="menuitem" href={consoleHref(link.path, consoleBasePath)} className="block px-3 py-2 text-sm hover:bg-[var(--muted)]">{t(link.label)}</a>

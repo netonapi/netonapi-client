@@ -1,4 +1,6 @@
 {
   "version": 1,
-  "routes": {}
+  "routes": {
+    "site.home": "/"
+  }
 }
