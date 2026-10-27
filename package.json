@@ -6,11 +6,12 @@
   "sideEffects": false,
   "exports": {
     "./manifest": "./src/manifest.ts",
+    "./slots/*": "./src/slots/*.tsx",
     "./pages/*": "./src/pages/*.tsx",
     "./locales/*": "./src/locales/*.ts"
   },
   "peerDependencies": {
-    "@neton/application-client-contract": "^1.0.0",
+    "@neton/application-client-contract": "^1.1.0",
     "@neton/application-client-kit": "^1.0.0",
     "@neton/application-client-runtime": "^1.0.0",
     "react": "^19.0.0",
