@@ -66,7 +66,12 @@ function makeEmpty(fields: ResourceField[]): ResourceRecord {
 
 function renderCell(field: ResourceField, row: ResourceRecord) {
   const value = row[field.key];
-  if (field.format === "status") return <StatusBadge active={Number(value) === 1}>{Number(value) === 1 ? "启用" : "停用"}</StatusBadge>;
+  if (field.format === "status") {
+    // 字段自己声明了选项就用选项文案，否则退回通用的启用 / 停用
+    const option = field.options?.find((o) => String(o.value) === String(value));
+    if (value === null || value === undefined || value === "") return <span className="text-[var(--muted-foreground)]">-</span>;
+    return <StatusBadge active={Number(value) === 1}>{option ? option.label : Number(value) === 1 ? "启用" : "停用"}</StatusBadge>;
+  }
   if (field.format === "date") return formatDateTime(value as string | number | null);
   if (field.format === "money") return <span className="tabular-nums">¥{(Number(value ?? 0) / 100).toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>;
   if (field.format === "mono") return <code className="text-xs">{String(value ?? "-")}</code>;
