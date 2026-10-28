@@ -7,7 +7,7 @@ import { useFormat, useT, type Translate } from "@neton/application-client-runti
 import { useQuery, useQueryClient } from "@neton/application-client-runtime/client-context";
 import { formatDateTime } from "@neton/application-client-runtime/types";
 import {
-  Alert, Button, Checkbox, DataTable, Drawer, Field, Input, PageHeader, RowActions, StatusBadge,
+  Alert, Button, Checkbox, CheckIcon, CopyIcon, DataTable, Drawer, Field, Input, KeyIcon, PageHeader, Portal, RowActions, StatusBadge,
   type DataColumn, type RowAction,
 } from "@neton/application-client-kit";
 
@@ -163,6 +163,60 @@ client = Anthropic(base_url="${base}", api_key="${sampleKey}")`}</pre>
   );
 }
 
+/** 写剪贴板。navigator.clipboard 只在安全上下文可用，退回 execCommand 兼容老浏览器。 */
+async function copyText(text: string): Promise<boolean> {
+  try { await navigator.clipboard.writeText(text); return true; } catch { /* 退回下面的老办法 */ }
+  const el = document.createElement("textarea");
+  el.value = text; el.setAttribute("readonly", ""); el.style.position = "fixed"; el.style.opacity = "0";
+  document.body.appendChild(el); el.select();
+  try { return document.execCommand("copy"); } catch { return false; } finally { document.body.removeChild(el); }
+}
+
+/**
+ * 新 Key 弹窗。明文只此一次，所以做成模态：点遮罩、按 Esc 都不关，只能点「我已保存」；
+ * 还没复制就要关时再确认一次 —— 关掉就再也看不到了。
+ */
+function IssuedKeyDialog({ issued, onClose }: { issued: IssuedToken; onClose: () => void }) {
+  const t = useT("gateway");
+  const [copied, setCopied] = React.useState(false);
+  const [copyFailed, setCopyFailed] = React.useState(false);
+  const copy = async () => {
+    const ok = await copyText(issued.key);
+    setCopied(ok); setCopyFailed(!ok);
+  };
+  const close = () => {
+    if (!copied && !window.confirm(t("keys.issued.close_uncopied"))) return;
+    onClose();
+  };
+  return (
+    <Portal>
+      <div className="fixed inset-0 z-[110] flex items-center justify-center bg-[#09090b]/60 px-4 backdrop-blur-sm">
+        <div role="alertdialog" aria-modal="true" aria-label={t("keys.issued.title")}
+          className="w-full max-w-lg rounded-xl border border-[var(--border)] bg-[var(--card)] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.35)]">
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-500"><KeyIcon className="h-5 w-5" /></span>
+            <h2 className="text-lg font-bold text-[var(--foreground)]">{t("keys.issued.title")}</h2>
+          </div>
+          <div className="mt-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2.5 text-sm font-medium leading-6 text-amber-600 dark:text-amber-400">
+            {t("keys.issued.warning")}
+          </div>
+          <div className="mt-4 flex items-stretch gap-2">
+            <code className="min-w-0 flex-1 select-all break-all rounded-lg border border-[var(--border)] bg-[var(--muted)] px-3 py-2.5 font-mono text-sm text-[var(--foreground)]">{issued.key}</code>
+            <Button className="h-auto shrink-0" onClick={() => void copy()}>
+              {copied ? <CheckIcon className="h-4 w-4" /> : <CopyIcon className="h-4 w-4" />}
+              {copied ? t("keys.issued.copied") : t("keys.issued.copy")}
+            </Button>
+          </div>
+          {copyFailed ? <p className="mt-2 text-xs text-red-500">{t("keys.issued.copy_failed")}</p> : null}
+          <div className="mt-6 flex justify-end">
+            <Button variant={copied ? "default" : "outline"} onClick={close}>{t("keys.issued.saved")}</Button>
+          </div>
+        </div>
+      </div>
+    </Portal>
+  );
+}
+
 /** 我的 API Key。明文只在创建后展示一次——服务端只存哈希，之后谁也取不回。 */
 export default function Page() {
   const describeError = useDescribeError("gateway");
@@ -269,16 +323,7 @@ export default function Page() {
         <Button onClick={() => openEditor(null, EMPTY_FORM)}>{t("keys.create")}</Button>
       </div>
 
-      {issued ? (
-        <div style={{ padding: 12, border: "1px solid currentColor", borderRadius: 8 }}>
-          <p><strong>{t("keys.issued.notice")}</strong></p>
-          <code style={{ wordBreak: "break-all" }}>{issued.key}</code>
-          <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
-            <Button variant="secondary" onClick={() => { void navigator.clipboard?.writeText(issued.key); }}>{t("keys.issued.copy")}</Button>
-            <Button onClick={() => setIssued(null)}>{t("keys.issued.saved")}</Button>
-          </div>
-        </div>
-      ) : null}
+      {issued ? <IssuedKeyDialog issued={issued} onClose={() => setIssued(null)} /> : null}
 
       <DataTable columns={columns} rows={rows} loading={loading} rowKey={(r) => r.id} />
 

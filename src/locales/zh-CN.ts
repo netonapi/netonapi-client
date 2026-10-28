@@ -26,7 +26,6 @@ const messages: Record<string, string> = {
   "keys.status.enabled": "启用",
   "keys.status.disabled": "停用",
   "keys.status.expired": "已过期",
-  "keys.issued.notice": "请立即复制保存，这串明文不会再显示：",
   "keys.issued.copy": "复制",
   "keys.issued.saved": "我已保存",
   "keys.drawer.create_title": "创建 API Key",
@@ -244,6 +243,11 @@ const messages: Record<string, string> = {
   "dashboard.recent.title": "最近调用",
   "dashboard.recent.tokens": "{tokens} tokens",
   "dashboard.recent.empty": "还没有调用记录",
+  "keys.issued.title": "API Key 创建成功",
+  "keys.issued.warning": "请立即复制并妥善保存。出于安全考虑，系统不保存明文，关闭此窗口后将无法再次查看；遗失只能删除后重新创建。",
+  "keys.issued.copied": "已复制",
+  "keys.issued.copy_failed": "复制失败，请手动选中上面的 Key 复制。",
+  "keys.issued.close_uncopied": "你还没有复制这个 Key。关闭后将无法再次查看，确定关闭吗？",
 };
 
 export default messages;

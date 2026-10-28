@@ -26,7 +26,6 @@ const messages: Record<string, string> = {
   "keys.status.enabled": "Enabled",
   "keys.status.disabled": "Disabled",
   "keys.status.expired": "Expired",
-  "keys.issued.notice": "Copy and store it now. This key won't be shown again:",
   "keys.issued.copy": "Copy",
   "keys.issued.saved": "I've saved it",
   "keys.drawer.create_title": "Create API key",
@@ -244,6 +243,11 @@ const messages: Record<string, string> = {
   "dashboard.recent.title": "Recent calls",
   "dashboard.recent.tokens": "{tokens} tokens",
   "dashboard.recent.empty": "No calls yet",
+  "keys.issued.title": "API key created",
+  "keys.issued.warning": "Copy it now and keep it somewhere safe. For security the plaintext is not stored: once you close this window it can never be shown again. If you lose it, delete it and create a new one.",
+  "keys.issued.copied": "Copied",
+  "keys.issued.copy_failed": "Copy failed. Select the key above and copy it manually.",
+  "keys.issued.close_uncopied": "You haven't copied this key yet. It can never be shown again after closing. Close anyway?",
 };
 
 export default messages;
