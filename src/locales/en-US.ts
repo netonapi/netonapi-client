@@ -173,7 +173,6 @@ const messages: Record<string, string> = {
   "error.RECHARGE_PRICE_TOO_HIGH": "The amount exceeds the maximum for a single top-up; split it into smaller payments",
   "error.RECHARGE_CHANNEL_REQUIRED": "A payment channel is required",
   "error.RECHARGE_NOT_FOUND": "Recharge order not found",
-  "error.MOCK_RECHARGE_DISABLED": "Mock recharge is disabled (set NETONAPI_ENABLE_MOCK_RECHARGE=true in a test environment)",
   "error.RECHARGE_AMOUNT_INVALID": "Amount must be positive",
   "error.TOKEN_NOT_FOUND": "Token not found",
   "error.TOKEN_NAME_REQUIRED": "Token name is required",

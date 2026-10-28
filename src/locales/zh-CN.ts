@@ -173,7 +173,6 @@ const messages: Record<string, string> = {
   "error.RECHARGE_PRICE_TOO_HIGH": "充值金额超过单笔上限，请分笔充值",
   "error.RECHARGE_CHANNEL_REQUIRED": "请选择支付渠道",
   "error.RECHARGE_NOT_FOUND": "充值单不存在",
-  "error.MOCK_RECHARGE_DISABLED": "模拟充值未开启（测试环境设 NETONAPI_ENABLE_MOCK_RECHARGE=true）",
   "error.RECHARGE_AMOUNT_INVALID": "充值额度必须是正数",
   "error.TOKEN_NOT_FOUND": "令牌不存在",
   "error.TOKEN_NAME_REQUIRED": "请填写令牌名称",
