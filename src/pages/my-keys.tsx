@@ -20,7 +20,7 @@ interface MyToken {
   /** 计费分组（决定线路与倍率）；groupAssigned = 运营指定的，用户改不了。 */
   group: string; groupAssigned: boolean;
 }
-interface GroupOption { code: string; name: string; description?: string | null; ratio: string }
+interface GroupOption { code: string; name: string; description?: string | null; ratio: string; hasModelPrices?: boolean }
 
 interface IssuedToken { id: number; key: string; display: string }
 interface PublicInfo { apiBase?: string | null; endpoints: { path: string; protocol: string; capability: string }[] }
@@ -158,6 +158,7 @@ function GroupPicker({ options, value, locked, onChange }: { options: GroupOptio
               </div>
               {gone ? <p className="mt-1 text-xs text-red-500">{t("keys.group.revoked")}</p>
                 : g.description ? <p className="mt-1 text-xs text-[var(--muted-foreground)]">{g.description}</p> : null}
+              {!gone && g.hasModelPrices ? <p className="mt-1 text-xs text-violet-600 dark:text-violet-400">{t("keys.group.has_model_prices")}</p> : null}
             </button>
           );
         })}

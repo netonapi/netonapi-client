@@ -108,7 +108,7 @@ const messages: Record<string, string> = {
 
   // Models and pricing
   "models.title": "Models and pricing",
-  "models.description": "Currently available models and their prices, in USD per 1M tokens. Per-request pricing is shown separately.",
+  "models.description": "Models you can call and their prices (USD / 1M tokens). \"Equals\" is your price relative to the official price; \"Agreed\" marks prices agreed with you.",
   "models.col.model": "Model",
   "models.col.capabilities": "Capabilities",
   "models.col.input_price": "Input / 1M",
@@ -255,6 +255,17 @@ const messages: Record<string, string> = {
   "keys.group.assigned_tag": "(assigned)",
   "error.TOKEN_GROUP_NOT_ALLOWED": "This group is not available to you. Choose another one.",
   "error.TOKEN_GROUP_LOCKED": "This key's group is assigned by the platform and cannot be changed",
+  "models.col.official": "Official (in/out)",
+  "models.col.your_price": "Your price (in/out)",
+  "models.col.discount": "Equals",
+  "models.of_official": "{x}% of official",
+  "models.times_official": "{x}× official",
+  "models.discount_scale": "100",
+  "models.per_request_price": "${price}/req",
+  "models.agreed": "Agreed",
+  "models.tiered_note": "long context priced separately",
+  "models.group_title": "Group: {name}",
+  "keys.group.has_model_prices": "Special prices on some models",
 };
 
 export default messages;

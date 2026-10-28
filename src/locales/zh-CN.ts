@@ -108,7 +108,7 @@ const messages: Record<string, string> = {
 
   // 模型与价格
   "models.title": "模型与价格",
-  "models.description": "当前可用的模型及其单价。价格以 USD / 1M tokens 计，按次计价的模型单独标注。",
+  "models.description": "你可以调用的模型与价格（USD / 百万 tokens）。「相当于」是你的价格相对官方价的折扣；标「协议价」的是为你单独约定的价格。",
   "models.col.model": "模型",
   "models.col.capabilities": "能力",
   "models.col.input_price": "输入价 / 1M",
@@ -255,6 +255,17 @@ const messages: Record<string, string> = {
   "keys.group.assigned_tag": "（平台指定）",
   "error.TOKEN_GROUP_NOT_ALLOWED": "这个分组不对你开放，请选择其他分组",
   "error.TOKEN_GROUP_LOCKED": "这把 Key 的分组由平台指定，不能自行修改",
+  "models.col.official": "官方价（入/出）",
+  "models.col.your_price": "你的价格（入/出）",
+  "models.col.discount": "相当于",
+  "models.of_official": "官方价 {x} 折",
+  "models.times_official": "官方价 {x} 倍",
+  "models.discount_scale": "1000",
+  "models.per_request_price": "${price}/次",
+  "models.agreed": "协议价",
+  "models.tiered_note": "长上下文另计",
+  "models.group_title": "分组：{name}",
+  "keys.group.has_model_prices": "部分模型另有优惠",
 };
 
 export default messages;
