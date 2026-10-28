@@ -17,7 +17,10 @@ interface MyToken {
   allowedModels: string; allowedIps: string;
   rpmLimit?: number | null; tpmLimit?: number | null; concurrencyLimit?: number | null;
   status: number; createdAt?: number | null;
+  /** 计费分组（决定线路与倍率）；groupAssigned = 运营指定的，用户改不了。 */
+  group: string; groupAssigned: boolean;
 }
+interface GroupOption { code: string; name: string; description?: string | null; ratio: string }
 
 interface IssuedToken { id: number; key: string; display: string }
 interface PublicInfo { apiBase?: string | null; endpoints: { path: string; protocol: string; capability: string }[] }
@@ -36,8 +39,9 @@ type ExpiryChoice = "keep" | (typeof EXPIRY_PRESETS)[number]["key"];
 interface TokenForm {
   name: string; budgetUsd: string; expiry: ExpiryChoice; keepExpiresAt: number | null;
   modelMode: "all" | "specific"; models: string[]; allowedIps: string;
+  group: string; groupLocked: boolean;
 }
-const EMPTY_FORM: TokenForm = { name: "", budgetUsd: "", expiry: "never", keepExpiresAt: null, modelMode: "all", models: [], allowedIps: "" };
+const EMPTY_FORM: TokenForm = { name: "", budgetUsd: "", expiry: "never", keepExpiresAt: null, modelMode: "all", models: [], allowedIps: "", group: "default", groupLocked: false };
 
 const usd = (micro: number) => `$${(micro / 1_000_000).toFixed(4)}`;
 const splitList = (v: string | null | undefined) => (v ?? "").split(",").map((x) => x.trim()).filter(Boolean);
@@ -51,6 +55,8 @@ function toForm(t: MyToken): TokenForm {
     modelMode: splitList(t.allowedModels).length ? "specific" : "all",
     models: splitList(t.allowedModels),
     allowedIps: t.allowedIps ?? "",
+    group: t.group || "default",
+    groupLocked: t.groupAssigned,
   };
 }
 
@@ -64,7 +70,7 @@ function endOfDayAfter(days: number): number {
 /** 表单 → 请求体；返回错误文案或 null。 */
 function toBody(f: TokenForm, t: Translate): { body: Record<string, unknown>; error: string | null } {
   const allowedModels = f.modelMode === "all" ? "" : f.models.join(",");
-  const body: Record<string, unknown> = { name: f.name.trim(), allowedModels, allowedIps: f.allowedIps.trim() };
+  const body: Record<string, unknown> = { name: f.name.trim(), allowedModels, allowedIps: f.allowedIps.trim(), group: f.group };
   if (!body.name) return { body, error: t("keys.err.name_required") };
   if (f.modelMode === "specific" && f.models.length === 0) return { body, error: t("keys.err.models_required") };
   if (f.budgetUsd.trim()) {
@@ -125,6 +131,37 @@ function ModelPicker({ catalog, mode, onMode, value, onChange }: {
           </div>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * 计费分组：决定这把 Key 走哪条线路、按什么倍率计费。可选范围由平台决定（default + 开放的 + 单独开给你的）；
+ * 运营指定的分组锁定不可改。当前分组若已不在可选范围里（被收回），照样列出来并标注，让用户知道要换。
+ */
+function GroupPicker({ options, value, locked, onChange }: { options: GroupOption[]; value: string; locked: boolean; onChange: (code: string) => void }) {
+  const t = useT("gateway");
+  const listed = options.some((g) => g.code === value) ? options : [...options, { code: value, name: value, ratio: "", description: null }];
+  return (
+    <div className="flex flex-col gap-2">
+      {locked ? <p className="text-xs text-[var(--muted-foreground)]">{t("keys.group.locked")}</p> : null}
+      <div className="grid gap-2 sm:grid-cols-2">
+        {listed.map((g) => {
+          const on = g.code === value;
+          const gone = !options.some((o) => o.code === g.code);
+          return (
+            <button key={g.code} type="button" disabled={locked && !on} onClick={() => !locked && onChange(g.code)}
+              className={`rounded-lg border p-3 text-left transition disabled:opacity-40 ${on ? "border-[var(--foreground)] ring-1 ring-[var(--foreground)]" : "border-[var(--border)] hover:bg-[var(--muted)]"}`}>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-medium">{g.name}</span>
+                {g.ratio ? <span className="text-xs tabular-nums text-[var(--muted-foreground)]">{t("keys.group.ratio", { ratio: g.ratio })}</span> : null}
+              </div>
+              {gone ? <p className="mt-1 text-xs text-red-500">{t("keys.group.revoked")}</p>
+                : g.description ? <p className="mt-1 text-xs text-[var(--muted-foreground)]">{g.description}</p> : null}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -234,6 +271,9 @@ export default function Page() {
   const tokensQ = useQuery({ queryKey: ["gateway-my-tokens"], queryFn: () => apiFetch<MyToken[]>("/app/gateway/token/list") });
   // 接入说明与模型目录拉不到不影响管理 Key：前者显示占位符，后者只能选「全部模型」
   const infoQ = useQuery({ queryKey: ["gateway-public-info"], queryFn: () => apiFetch<PublicInfo>("/app/gateway/public-info") });
+  const groupsQ = useQuery({ queryKey: ["gateway-my-groups"], queryFn: () => apiFetch<GroupOption[]>("/app/gateway/token/groups") });
+  const groupOptions = groupsQ.data ?? [];
+  const groupName = (code: string) => groupOptions.find((g) => g.code === code)?.name ?? code;
   const catalogQ = useQuery({ queryKey: ["gateway-models"], queryFn: () => apiFetch<{ model: string }[]>("/app/gateway/model/list") });
   const rows = tokensQ.data ?? [];
   const loading = tokensQ.isLoading;
@@ -301,6 +341,7 @@ export default function Page() {
     { key: "name", header: t("keys.col.name"), cell: (r) => r.name },
     { key: "display", header: "Key", cell: (r) => <code>{r.display}</code> },
     { key: "quota", header: t("keys.col.quota"), cell: (r) => `${usd(r.quotaUsed)} / ${r.quotaBudget != null ? usd(r.quotaBudget) : t("keys.unlimited")}` },
+    { key: "group", header: t("keys.col.group"), cell: (r) => <span>{groupName(r.group)}{r.groupAssigned ? <span className="ml-1 text-[11px] text-[var(--muted-foreground)]">{t("keys.group.assigned_tag")}</span> : null}</span> },
     { key: "models", header: t("keys.col.models"), cell: (r) => r.allowedModels ? r.allowedModels : t("keys.models.all_short") },
     { key: "limits", header: t("keys.col.limits"), cell: limits },
     { key: "expiresAt", header: t("keys.col.expires"), cell: (r) => (r.expiresAt ? formatDateTime(r.expiresAt) : t("keys.no_expiry")) },
@@ -355,6 +396,9 @@ export default function Page() {
               ))}
             </div>
           </Field>
+          {groupOptions.length > 1 || f.group !== "default" ? (
+            <Field label={t("keys.field.group")}><GroupPicker options={groupOptions} value={f.group} locked={f.groupLocked} onChange={(group) => setF({ group })} /></Field>
+          ) : null}
           <Field label={t("keys.field.models")}><ModelPicker catalog={catalog} mode={f.modelMode} onMode={(modelMode) => setF({ modelMode })} value={f.models} onChange={(models) => setF({ models })} /></Field>
           <Field label={t("keys.field.budget")}>
             <Input value={f.budgetUsd} onChange={(e) => setF({ budgetUsd: e.target.value })} placeholder={t("keys.field.budget_placeholder")} inputMode="decimal" />

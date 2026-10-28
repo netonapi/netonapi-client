@@ -248,6 +248,14 @@ const messages: Record<string, string> = {
   "keys.issued.copied": "已复制",
   "keys.issued.copy_failed": "复制失败，请手动选中上面的 Key 复制。",
   "keys.issued.close_uncopied": "你还没有复制这个 Key。关闭后将无法再次查看，确定关闭吗？",
+  "keys.col.group": "分组",
+  "keys.field.group": "计费分组（决定线路与价格倍率）",
+  "keys.group.ratio": "价格 ×{ratio}",
+  "keys.group.locked": "这把 Key 的分组由平台指定，如需调整请联系客户经理。",
+  "keys.group.revoked": "该分组已不再对你开放，请换一个分组，否则这把 Key 无法调用。",
+  "keys.group.assigned_tag": "（平台指定）",
+  "error.TOKEN_GROUP_NOT_ALLOWED": "这个分组不对你开放，请选择其他分组",
+  "error.TOKEN_GROUP_LOCKED": "这把 Key 的分组由平台指定，不能自行修改",
 };
 
 export default messages;

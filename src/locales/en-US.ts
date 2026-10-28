@@ -248,6 +248,14 @@ const messages: Record<string, string> = {
   "keys.issued.copied": "Copied",
   "keys.issued.copy_failed": "Copy failed. Select the key above and copy it manually.",
   "keys.issued.close_uncopied": "You haven't copied this key yet. It can never be shown again after closing. Close anyway?",
+  "keys.col.group": "Group",
+  "keys.field.group": "Billing group (routes and price multiplier)",
+  "keys.group.ratio": "Price ×{ratio}",
+  "keys.group.locked": "This key's group is assigned by the platform. Contact your account manager to change it.",
+  "keys.group.revoked": "This group is no longer available to you. Choose another one, otherwise this key cannot make calls.",
+  "keys.group.assigned_tag": "(assigned)",
+  "error.TOKEN_GROUP_NOT_ALLOWED": "This group is not available to you. Choose another one.",
+  "error.TOKEN_GROUP_LOCKED": "This key's group is assigned by the platform and cannot be changed",
 };
 
 export default messages;
