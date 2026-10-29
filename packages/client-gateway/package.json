@@ -1,0 +1,36 @@
+{
+  "name": "@neton/application-client-gateway",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    "./manifest": "./src/manifest.ts",
+    "./slots/*": "./src/slots/*.tsx",
+    "./pages/*": "./src/pages/*.tsx",
+    "./locales/*": "./src/locales/*.ts"
+  },
+  "peerDependencies": {
+    "@neton/application-client-contract": "^1.1.0",
+    "@neton/application-client-kit": "^1.0.0",
+    "@neton/application-client-runtime": "^1.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@neton/application-client-contract": "file:../neton-application-client/packages/client-contract",
+    "@neton/application-client-kit": "file:../neton-application-client/packages/client-kit",
+    "@neton/application-client-runtime": "file:../neton-application-client/packages/client-runtime",
+    "@neton/application-front-workspace": "file:../neton-application-front/packages/front-workspace",
+    "@tanstack/react-query": "^5.104.2",
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "typescript": "^7.0.2"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  }
+}
