@@ -54,16 +54,16 @@ NetonAPI 网站前端（仓库 [`netonapi/netonapi-web`](https://github.com/neto
 @neton/application-client-account   # 通用：账号（资料、密码、邮箱、手机）
 @neton/application-client-member    # 通用：会员成长（邀请好友）
 @neton/application-client-payment   # 通用：充值与账单
-@neton/application-client-gateway   # 产品：NetonAPI 的 API 网关自助面
+@neton/application-client-gateway   # 产品：NetonAPI 的 API 网关自助面（就在本仓 packages/client-gateway）
 ```
 
-四个模块都以 `file:../../../../Neton/neton-application-client-*` 引入，所以本仓必须正好落在
+`client-gateway` 以 `workspace:*` 引入；其余三个通用模块都以 `file:../../../../Neton/neton-application-client-*` 引入，所以本仓必须正好落在
 持有 `Neton/` 的那层目录的**两层深处**：
 
 ```
 projects/
 ├── Neton/
-│   └── neton-application-client-{account,member,payment,gateway}/
+│   └── neton-application-client-{account,member,payment}/
 └── <workspace>/
     ├── netonapi-backend/   # 后端
     └── netonapi-client/    # ← 本仓
@@ -71,8 +71,8 @@ projects/
 
 ### 安装前提
 
-`pnpm install` 需要上面每个模块仓的读权限。`neton-application-client-gateway`（NetonAPI 自助面的页面）
-目前是私有仓（`-account`、`-member`、`-payment` 是公开的），在它公开之前，只凭公开源码装不起来。
+依赖的通用模块仓（`-account`、`-member`、`-payment` 与底座 `neton-application-front`）都是公开的，
+只凭公开源码即可安装构建。
 
 ## 开发
 

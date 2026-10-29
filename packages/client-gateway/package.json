@@ -18,10 +18,10 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "@neton/application-client-contract": "file:../neton-application-client/packages/client-contract",
-    "@neton/application-client-kit": "file:../neton-application-client/packages/client-kit",
-    "@neton/application-client-runtime": "file:../neton-application-client/packages/client-runtime",
-    "@neton/application-front-workspace": "file:../neton-application-front/packages/front-workspace",
+    "@neton/application-client-contract": "workspace:*",
+    "@neton/application-client-kit": "workspace:*",
+    "@neton/application-client-runtime": "workspace:*",
+    "@neton/application-front-workspace": "file:../../../../Neton/neton-application-front/packages/front-workspace",
     "@tanstack/react-query": "^5.104.2",
     "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",

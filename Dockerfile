@@ -9,10 +9,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 COPY Neton/neton-application-front/packages/front-workspace/package.json /src/Neton/neton-application-front/packages/front-workspace/package.json
 COPY Neton/neton-application-front/packages/front-workspace/src          /src/Neton/neton-application-front/packages/front-workspace/src
 
-# ── canonical 控制台模块（四个）──
-COPY Neton/neton-application-client-gateway/package.json  /src/Neton/neton-application-client-gateway/package.json
-COPY Neton/neton-application-client-gateway/tsconfig.json /src/Neton/neton-application-client-gateway/tsconfig.json
-COPY Neton/neton-application-client-gateway/src           /src/Neton/neton-application-client-gateway/src
+# ── canonical 控制台模块（gateway 在本仓 packages/client-gateway，见下方）──
 COPY Neton/neton-application-client-account/package.json  /src/Neton/neton-application-client-account/package.json
 COPY Neton/neton-application-client-account/tsconfig.json /src/Neton/neton-application-client-account/tsconfig.json
 COPY Neton/neton-application-client-account/src           /src/Neton/neton-application-client-account/src
@@ -36,6 +33,9 @@ COPY NewGate/netonapi-client/packages/client-resource/package.json ./packages/cl
 COPY NewGate/netonapi-client/packages/client-resource/src          ./packages/client-resource/src
 COPY NewGate/netonapi-client/packages/client-runtime/package.json  ./packages/client-runtime/package.json
 COPY NewGate/netonapi-client/packages/client-runtime/src           ./packages/client-runtime/src
+COPY NewGate/netonapi-client/packages/client-gateway/package.json  ./packages/client-gateway/package.json
+COPY NewGate/netonapi-client/packages/client-gateway/tsconfig.json ./packages/client-gateway/tsconfig.json
+COPY NewGate/netonapi-client/packages/client-gateway/src           ./packages/client-gateway/src
 COPY NewGate/netonapi-client/apps/console/package.json NewGate/netonapi-client/apps/console/next.config.ts \
      NewGate/netonapi-client/apps/console/client.modules.ts NewGate/netonapi-client/apps/console/postcss.config.mjs \
      NewGate/netonapi-client/apps/console/tsconfig.json ./apps/console/

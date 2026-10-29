@@ -51,8 +51,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/client-contract
       '@neton/application-client-gateway':
-        specifier: file:../../../../Neton/neton-application-client-gateway
-        version: file:../../Neton/neton-application-client-gateway(@neton/application-client-contract@packages+client-contract)(@neton/application-client-kit@packages+client-kit)(@neton/application-client-runtime@packages+client-runtime)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+        specifier: workspace:*
+        version: link:../../packages/client-gateway
       '@neton/application-client-kit':
         specifier: workspace:*
         version: link:../../packages/client-kit
@@ -111,6 +111,42 @@ importers:
 
   packages/client-contract:
     devDependencies:
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+
+  packages/client-gateway:
+    devDependencies:
+      '@neton/application-client-contract':
+        specifier: workspace:*
+        version: link:../client-contract
+      '@neton/application-client-kit':
+        specifier: workspace:*
+        version: link:../client-kit
+      '@neton/application-client-runtime':
+        specifier: workspace:*
+        version: link:../client-runtime
+      '@neton/application-front-workspace':
+        specifier: file:../../../../Neton/neton-application-front/packages/front-workspace
+        version: file:../../Neton/neton-application-front/packages/front-workspace(react@19.3.0)
+      '@tanstack/react-query':
+        specifier: ^5.104.2
+        version: 5.104.2(react@19.3.0)
+      '@types/node':
+        specifier: ^26.6.5
+        version: 26.6.5
+      '@types/react':
+        specifier: ^19.3.0
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: ^19.3.0
+        version: 19.3.0(@types/react@19.3.0)
+      react:
+        specifier: ^19.3.0
+        version: 19.3.0
+      react-dom:
+        specifier: ^19.3.0
+        version: 19.3.0(react@19.3.0)
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
@@ -594,15 +630,6 @@ packages:
     resolution: {directory: ../../Neton/neton-application-client-account, type: directory}
     peerDependencies:
       '@neton/application-client-contract': ^1.0.0
-      '@neton/application-client-kit': ^1.0.0
-      '@neton/application-client-runtime': ^1.0.0
-      react: ^19.0.0
-      react-dom: ^19.0.0
-
-  '@neton/application-client-gateway@file:../../Neton/neton-application-client-gateway':
-    resolution: {directory: ../../Neton/neton-application-client-gateway, type: directory}
-    peerDependencies:
-      '@neton/application-client-contract': ^1.1.0
       '@neton/application-client-kit': ^1.0.0
       '@neton/application-client-runtime': ^1.0.0
       react: ^19.0.0
@@ -2675,14 +2702,6 @@ snapshots:
   '@marbec/web-auto-extractor@2.2.1': {}
 
   '@neton/application-client-account@file:../../Neton/neton-application-client-account(@neton/application-client-contract@packages+client-contract)(@neton/application-client-kit@packages+client-kit)(@neton/application-client-runtime@packages+client-runtime)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
-    dependencies:
-      '@neton/application-client-contract': link:packages/client-contract
-      '@neton/application-client-kit': link:packages/client-kit
-      '@neton/application-client-runtime': link:packages/client-runtime
-      react: 19.3.0
-      react-dom: 19.3.0(react@19.3.0)
-
-  '@neton/application-client-gateway@file:../../Neton/neton-application-client-gateway(@neton/application-client-contract@packages+client-contract)(@neton/application-client-kit@packages+client-kit)(@neton/application-client-runtime@packages+client-runtime)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
     dependencies:
       '@neton/application-client-contract': link:packages/client-contract
       '@neton/application-client-kit': link:packages/client-kit
