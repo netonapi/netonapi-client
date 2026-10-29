@@ -1,11 +1,11 @@
-# NetonAPI 用户控制台
+# NetonAPI 网站前端
 
-NetonAPI 自助侧前端（仓库 `netonapi/netonapi-client`，本地目录同名）：用户在这里建 API Key、看用量与账单、
+NetonAPI 网站前端（仓库 [`netonapi/netonapi-web`](https://github.com/netonapi/netonapi-web)，本地目录 `netonapi-client`）：用户在这里建 API Key、看用量与账单、
 在线充值或用兑换码入账，并查看模型与价格；门户首页与公开价格页也由本仓提供。React 19 + Next.js App Router（SSR），pnpm workspace，BFF 代理模式。
-与管理台 [`netonapi-frontend`](https://github.com/netonapi/netonapi-frontend) 同构、同维护模式，
+与管理后台 [`netonapi/netonapi-admincp`](https://github.com/netonapi/netonapi-admincp) 同构、同维护模式，
 面向的是会员而不是运营人员。
 
-后端是 [`netonapi-backend`](https://github.com/netonapi/netonapi-backend)（默认
+服务端是 [`netonapi/netonapi`](https://github.com/netonapi/netonapi)（默认
 `http://localhost:8800`）；部署与密钥说明见 `nanogate` 仓的
 [`DEPLOY.md`](https://github.com/zoujiaqing/nanogate/blob/main/DEPLOY.md)。
 
