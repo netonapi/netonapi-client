@@ -1,12 +1,9 @@
 # NetonAPI 用户控制台
 
-NetonAPI 自助侧前端（仓库 `netonapi/netonapi-client`，本地目录同名）：用户在这里领 API Key、看用量与账单、
-用兑换码入账，并查看模型定价。React 19 + Next.js App Router（SSR），pnpm workspace，BFF 代理模式。
+NetonAPI 自助侧前端（仓库 `netonapi/netonapi-client`，本地目录同名）：用户在这里建 API Key、看用量与账单、
+在线充值或用兑换码入账，并查看模型与价格；门户首页与公开价格页也由本仓提供。React 19 + Next.js App Router（SSR），pnpm workspace，BFF 代理模式。
 与管理台 [`netonapi-frontend`](https://github.com/netonapi/netonapi-frontend) 同构、同维护模式，
 面向的是会员而不是运营人员。
-
-> ⚠️ **在线付款还没接。** 后端那半边是齐的（下单与订单回读都在，harness S32/S33/S53 钉着），
-> 但用户侧没有收银台 —— 额度目前只能靠运营手工发放或兑换码进账。详见「已知缺口」。
 
 后端是 [`netonapi-backend`](https://github.com/netonapi/netonapi-backend)（默认
 `http://localhost:8800`）；部署与密钥说明见 `nanogate` 仓的
@@ -16,7 +13,7 @@ NetonAPI 自助侧前端（仓库 `netonapi/netonapi-client`，本地目录同�
 |---|---|
 | 前端 | React 19.2 · Next.js 16（App Router，SSR）· Tailwind 4 · TanStack Query 5 |
 | 包管理 | pnpm workspace（`apps/*` + `packages/*`），lockfile 已提交 |
-| 语言 | TypeScript 5.7（`tsc --noEmit` 为门禁） |
+| 语言 | TypeScript 7（`tsc --noEmit` 为门禁） |
 | 开发端口 | `3000`（Next.js 默认，`next dev` 未带 `-p`） |
 | 许可 | [Apache-2.0](./LICENSE) |
 
@@ -33,13 +30,13 @@ NetonAPI 自助侧前端（仓库 `netonapi/netonapi-client`，本地目录同�
 `maxAge` 下限 60s、兜底 8h。
 
 底座的公开路由（匿名可缓存的 SSR 门户页面）契约见 [docs/spec/public-routes.md](docs/spec/public-routes.md)。
-本控制台不装公开路由：`apps/console/site.config.ts` 保持 `consoleBasePath = "/"`（整站是登录后的页面，
-robots.txt 为 `Disallow: /`）。
+本仓装了公开路由：`apps/console/site.config.ts` 设 `consoleBasePath = "/console"`，根路径 `/` 是门户首页、
+`/pricing` 是公开价格页（`src/site/pages/`，可被收录）；控制台、登录注册与 `/api/` 在 robots.txt 里不收录。
 
 ## 结构
 
-- `apps/console`（`@neton/application-client-console`）—— Next.js 壳：会员登录、
-  模块 manifest 驱动的 catch-all 路由 `(protected)/[...slug]`
+- `apps/console`（`@neton/application-client-console`）—— Next.js 壳：会员登录、门户首页与价格页、
+  模块 manifest 驱动的控制台路由
 - `packages/client-contract` —— 模块契约（manifest / 贡献点 / 版本协议）
 - `packages/client-runtime` —— envelope HTTP client、会员会话、静态导航工具
 - `packages/client-kit` —— UI 组件的唯一属地（shadcn / Base UI 只进这里）
@@ -66,16 +63,16 @@ robots.txt 为 `Disallow: /`）。
 ```
 projects/
 ├── Neton/
-│   └── neton-application-client-{member,payment,gateway}/
+│   └── neton-application-client-{account,member,payment,gateway}/
 └── <workspace>/
     ├── netonapi-backend/   # 后端
     └── netonapi-client/    # ← 本仓
 ```
 
-> ⚠️ **现在从干净 clone 出发装不起来。** `neton-application-client-gateway` 目前是私有仓
-> （`-member`、`-payment` 是公开的），而它正是 NetonAPI 自助面的页面所在。没有它的读权限，
-> `pnpm install` 会在解析 `file:` 依赖时失败。在它转公开之前，公开本仓只意味着「源码可读」，
-> 不意味着「人人可自建」。
+### 安装前提
+
+`pnpm install` 需要上面每个模块仓的读权限。`neton-application-client-gateway`（NetonAPI 自助面的页面）
+目前是私有仓（`-account`、`-member`、`-payment` 是公开的），在它公开之前，只凭公开源码装不起来。
 
 ## 开发
 
@@ -124,11 +121,12 @@ pnpm cdn:rules [--text]       # 由站点配置与公开路由生成 CDN 缓存�
 
 ## 已知缺口
 
-- 在线收银台已有（选渠道 → 下单 → 跳转 / 二维码 / SDK 参数 → 轮询到账），但只在沙箱渠道下端到端验证过；
-  真实支付宝 / 微信商户号要上线前再走一遍。二维码是页内 SVG 编码（已与 python-qrcode 逐位比对到版本 10）。
-- `(protected)/layout.tsx` 给 `AppShell` 传的 `roles` 与 `permissions` 仍是空数组——这是**有意的**：
+- 在线充值：先填金额，点充值后在弹窗里选支付方式 → 下单 → 跳转 / 二维码 / SDK 参数 → 轮询到账。
+  端到端只在沙箱通道下验证过，真实支付宝 / 微信商户号接入后要再走一遍；没有可用通道时页面提示联系管理员充值。
+  二维码是页内 SVG 编码（已与 python-qrcode 逐位比对到版本 10）。
+- `components/workspace-root.tsx` 给工作区外壳传的 `roles` 与 `permissions` 仍是空数组——这是**有意的**：
   用户侧不做前端权限门控，能看什么由后端接口按 identity 隔离，侧栏藏页面不构成安全边界。别去「补」它。
-- 公开页只有 `(auth)` 组里的登录 / 注册 / 找回密码；定价页这类不登录也想看的页面要自己加路由组。
+- 公开页：`(public)/(site)` 下的门户首页与价格页（`/pricing`），以及 `(auth)` 下的登录 / 注册 / 找回密码。
 - 没有公告、两步验证。
 
 ## 许可
